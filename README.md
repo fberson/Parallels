@@ -1,2 +1,2 @@
 # Parallels
-Parallels public scripts
+This is an open repo containing Parallels automation code
