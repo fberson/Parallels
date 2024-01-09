@@ -1,11 +1,11 @@
-﻿<#  
+<#  
 .SYNOPSIS  
     RAS auto-deploy script for Azure MarketPlace Deployments
 .NOTES  
     File Name  : RAS_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.3
-    Date       : Nov 13 2023
+    Version    : v0.0.4
+    Date       : Dec 09 2024
 .EXAMPLE
     .\RAS_Install.ps1
 #>
@@ -22,7 +22,11 @@ param(
     [string]$MyAccountEmail,
 
     [Parameter(Mandatory=$true)]
-    [string]$MyAccountpassord
+    [string]$MyAccountpassord,
+
+    [Parameter(Mandatory=$true)]
+    [string]$ResourceUsageId
+
 )
 $hostname = hostname
 $localAdminPasswordSecure = ConvertTo-SecureString $localAdminPassword -AsPlainText -Force
@@ -45,6 +49,10 @@ function WriteLog
 #Set variables
 $EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi' 
+
+#Log The ResourceUsageId
+WriteLog "ResourceUsageId:"
+WriteLog $ResourceUsageId
 
 #Download the latest RAS installer 
 WriteLog "Dowloading most recent Parallels RAS Installer"
