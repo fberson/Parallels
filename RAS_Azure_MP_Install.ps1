@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.4
-    Date       : Dec 09 2024
+    Version    : v0.0.5
+    Date       : Jan 15 2024
 .EXAMPLE
     .\RAS_Install.ps1
 #>
@@ -25,7 +25,7 @@ param(
     [string]$MyAccountpassord,
 
     [Parameter(Mandatory=$true)]
-    [string]$ResourceUsageId
+    [string]$managedAppId
 
 )
 $hostname = hostname
@@ -51,8 +51,27 @@ $EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi' 
 
 #Log The ResourceUsageId
-WriteLog "ResourceUsageId:"
-WriteLog $ResourceUsageId
+WriteLog "managedAppId:"
+WriteLog $managedAppId
+
+# Split the string and extract values
+$parts = $managedAppId -split '/'
+$SubscriptionId = $parts[2]
+$ResourceGroup = $parts[4]
+$ApplicationName = $parts[8]
+
+# Create a PowerShell object with the extracted values
+$data = @{
+    SubscriptionId = $SubscriptionId
+    ResourceGroup = $ResourceGroup
+    ApplicationName = $ApplicationName
+}
+
+# Convert the object to JSON
+$json = $data | ConvertTo-Json
+
+# Write the JSON to a file
+$json | Out-File -FilePath "C:\install\output.json"
 
 #Download the latest RAS installer 
 WriteLog "Dowloading most recent Parallels RAS Installer"
