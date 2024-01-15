@@ -4,7 +4,7 @@
 .NOTES  
     File Name  : RAS_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.5
+    Version    : v0.0.6
     Date       : Jan 15 2024
 .EXAMPLE
     .\RAS_Install.ps1
@@ -48,7 +48,11 @@ function WriteLog
 
 #Set variables
 $EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
-$Temploc = 'C:\install\RASInstaller.msi' 
+$Temploc = 'C:\install\RASInstaller.msi'
+
+# Disable IE ESC for Administrators and users
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
 
 #Log The ResourceUsageId
 WriteLog "managedAppId:"
