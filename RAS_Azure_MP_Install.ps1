@@ -1,13 +1,13 @@
 <#  
 .SYNOPSIS  
-    RAS auto-deploy script for Azure MarketPlace Deployments
+    PArallels RAS auto-deploy script for Azure MarketPlace Deployments
 .NOTES  
-    File Name  : RAS_Install.ps1
+    File Name  : RRAS_Azure_MP_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.6
-    Date       : Jan 15 2024
+    Version    : v0.0.7
+    Date       : Jan 16 2024
 .EXAMPLE
-    .\RAS_Install.ps1
+    .\RRAS_Azure_MP_Install.ps1
 #>
 
 #Collect Parameters
@@ -22,15 +22,24 @@ param(
     [string]$MyAccountEmail,
 
     [Parameter(Mandatory=$true)]
-    [string]$MyAccountpassord,
+    [string]$MyAccountpassword,
 
     [Parameter(Mandatory=$true)]
-    [string]$managedAppId
+    [string]$resourceID,
+
+    [Parameter(Mandatory=$true)]
+    [string]$tenantID,
+
+    [Parameter(Mandatory=$true)]
+    [string]$keyVaultName,
+
+    [Parameter(Mandatory=$true)]
+    [string]$secretName
 
 )
 $hostname = hostname
 $localAdminPasswordSecure = ConvertTo-SecureString $localAdminPassword -AsPlainText -Force
-$MyAccountpassordSecure = ConvertTo-SecureString $MyAccountpassord -AsPlainText -Force
+$MyAccountpassordSecure = ConvertTo-SecureString $MyAccountpassword -AsPlainText -Force
 $installPath = "C:\install"
 
 # Check if the install path already exists
@@ -55,20 +64,20 @@ Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Componen
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
 
 #Log The ResourceUsageId
-WriteLog "managedAppId:"
-WriteLog $managedAppId
+WriteLog "resourceID:"
+WriteLog $resourceID
 
 # Split the string and extract values
-$parts = $managedAppId -split '/'
+$parts = $resourceID -split '/'
 $SubscriptionId = $parts[2]
-$ResourceGroup = $parts[4]
-$ApplicationName = $parts[8]
 
 # Create a PowerShell object with the extracted values
 $data = @{
     SubscriptionId = $SubscriptionId
-    ResourceGroup = $ResourceGroup
-    ApplicationName = $ApplicationName
+    localAdminUser = $localAdminUser
+    keyVaultName = $keyVaultName
+    secretName = $secretName
+    tenantID = $tenantID
 }
 
 # Convert the object to JSON
