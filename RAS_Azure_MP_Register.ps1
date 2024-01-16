@@ -1,11 +1,11 @@
 <#  
 .SYNOPSIS  
-    RAS retreive license from MA and register
+    PArallels RAS register script for Azure MarketPlace Deployments
 .NOTES  
     File Name  : RAS_Azure_MP_Register.ps1
     Author     : Freek Berson
-    Version    : v0.0.1
-    Date       : Jan 15 2024
+    Version    : v0.0.7
+    Date       : Jan 16 2024
 .EXAMPLE
     .\RAS_Azure_MP_Register.ps1
 #>
@@ -84,67 +84,69 @@ function import-AzureModule {
     }
 }
 
-function set-AzureTenant {
-    # Retrieve Azure tenants
-    $tenants = Get-AzTenant
+function get-AzureDetailsFromJSON {
+    try {
+        # Define the path to the JSON file
+        $jsonFilePath = "C:\install\output.json"
 
-    # Display the list of tenants and prompt the user to select one
-    $i = 1
-    $selectedTenant = $null
+        # Read the JSON content from the file
+        $jsonContent = Get-Content -Path $jsonFilePath | Out-String
 
-    Write-Host "Azure Tenants:" -ForegroundColor Yellow
-    foreach ($tenant in $tenants) {
-        Write-Host "$i. $($tenant.Name) - $($tenant.TenantId)"
-        $i++
+        # Convert JSON content to a PowerShell object
+        $data = $jsonContent | ConvertFrom-Json
+
+        return $data
     }
-
-    $validSelection = $false
-    while (-not $validSelection) {
-        $selection = Read-Host ('>> Select a tenant by entering the corresponding number')
-        
-        if ($selection -match '^\d+$') {
-            $selection = [int]$selection
-            if ($selection -ge 1 -and $selection -le $tenants.Count) {
-                $validSelection = $true
-            }
-        }
-        
-        if (-not $validSelection) {
-            Write-Host "Invalid input. Please enter a valid number between 1 and $($tenants.Count)" -ForegroundColor Red
-        }
+    catch {
+        Write-Host "Error reading JSON file with Azure details." -ForegroundColor Red
+        return $false
     }
-
-    $selectedTenant = $tenants[$selection - 1]
-
-    # Store the selected tenant ID in tenantId variable
-    $tenantId = $selectedTenant.TenantId
-
-    Write-Host "Selected Tenant ID: $tenantId`n" -ForegroundColor Green
-
-    # Return the selected tenant ID
-    return $tenantId
 }
 
-# Define the path to the JSON file
-$jsonFilePath = "C:\install\output.json"
+function get-resourceUsageId {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$SubscriptionId,
+        [Parameter(Mandatory = $true)]
+        [string]$appPublisherName,
+        [Parameter(Mandatory = $true)]
+        [string]$appProductName
 
-# Read the JSON content from the file
-$jsonContent = Get-Content -Path $jsonFilePath | Out-String
+    )
+    #Get the resourceUsageId
+    Set-AzContext -SubscriptionId $SubscriptionId
+        
+    $managedAppName = (get-azresource -ResourceType 'Microsoft.Solutions/applications' | Where-Object { ($_.Plan.Publisher -match $appPublisherName) -and ($_.Plan.product -match $appProductName) -and ($_.kind -match 'MarketPlace') }).name
+    
+    $managedAppResourceGroupName = (get-azresource -ResourceType 'Microsoft.Solutions/applications' | Where-Object { ($_.Plan.Publisher -match $appPublisherName) -and ($_.Plan.product -match $appProductName) -and ($_.kind -match 'MarketPlace') }).ResourceGroupName
+    
+    $resource = Get-AzResource -ResourceType "Microsoft.Solutions/applications" -ResourceGroupName $managedAppResourceGroupName -Name $managedAppName
+    
+    $resourceUsageId = $resource.Properties.billingDetails.resourceUsageId
 
-# Convert JSON content to a PowerShell object
-$data = $jsonContent | ConvertFrom-Json
+    return $resourceUsageId[1]
+}
 
-# Import the values into variables
-$SubscriptionId = $data.SubscriptionId
-$ResourceGroup = $data.ResourceGroup
-$ApplicationName = $data.ApplicationName
+function get-keyVaultSecret {
+    param {
+        [Parameter(Mandatory = $true)]
+        [string]$keyVaultName,
+        [Parameter(Mandatory = $true)]
+        [string]$secretName
 
-# Output the variables
-"Subscription ID: $SubscriptionId"
-"Resource Group: $ResourceGroup"
-"Application Name: $ApplicationName"
+    }
+    return = Get-AzKeyVaultSecret -VaultName $keyVaultName -Name $secretName
+}
+
+# BEGIN SCRIPT
 
 Clear-Host
+
+Write-Host '*** This script will register Parallels RAS and import a license key ***' -ForegroundColor Green
+Write-Host 'Please authenticate towards Azure to complete the setup.' `n
+
+$appPublisherName = 'Parallels'
+$appProductName = 'parallelsras-preview'
 
 if (-not (IsSupportedOS)) {
     Read-Host "Press any key to continue..."
@@ -163,53 +165,65 @@ try {
 Catch {
     Write-Host "ERROR: trying to install latest NuGet version"
     Write-Host $_Write-Host $_.Exception.Message
-    #exit
+    exit
 }
 
 # Check and import the required Azure PowerShell module
 try {
     import-AzureModule "Az.Accounts"
-    #import-AzureModule "AzureAD"
     import-AzureModule "Az.Resources"
 }
 Catch {
     Write-Host "ERROR: trying to import required modules import Az.Accounts, AzureAD, Az.Resources, Az.network, and Az.keyVault"
     Write-Host $_.Exception.Message
-    #exit
+    exit
+}
+
+# Get Azure details from JSON file
+try {
+    $retreivedData = get-AzureDetailsFromJSON 
+}
+Catch {
+    Write-Host "ERROR: retreiving Azure details from JSON file"
+    Write-Host $_.Exception.Message
+    exit
 }
 
 # Connect to Azure and Azure AD
 try {
-    $currentUser = Connect-AzAccount
-    Connect-AzureAD | Out-Null
+    $currentUser = Connect-AzAccount -Tenant $retreivedData.tenantID
 }
 Catch {
     Write-Host "ERROR: trying to run Connect-AzAccount and Connect-AzureAD"
     Write-Host $_.Exception.Message
-    #exit
-}
-
-# Set Azure tenant
-try {
-    $selectedTenantId = set-AzureTenant
-}
-Catch {
-    Write-Host "ERROR: trying to get Azure Tenants"
-    Write-Host $_.Exception.Message
-    #exit
 }
 
 #Get the resourceUsageId
-Set-AzContext -SubscriptionId $SubscriptionId
-$resource = Get-AzResource -ResourceType "Microsoft.Solutions/applications" -ResourceGroupName $ResourceGroup -Name $ApplicationName
-$resourceUsageId = $resource.Properties.billingDetails.resourceUsageId
+try {
+    $resourceUsageId = get-resourceUsageId -SubscriptionId $retreivedData.SubscriptionId -appPublisherName $appPublisherName -appProductName $appProductName
+}
+Catch {
+    Write-Host "ERROR: trying to read resource usage id from managed app"
+    Write-Host $_.Exception.Message
+    exit
+}
+
+#Get the keyvault secret
+try {
+    $localAdminPasswordSecure = ConvertTo-SecureString (get-keyVaultSecret(-keyVaultName $retreivedData.keyVaultName -secretName $retreivedData.secretName)) -AsPlainText -Force
+}
+Catch {
+    Write-Host "ERROR: trying to read resource usage id from managed app"
+    Write-Host $_.Exception.Message
+    exit
+}
 
 #Contact MA to get Parallels RAS License key
-Write-Host "resourceUsageId:"$resourceUsageId
+Write-Host $resourceUsageId[1]
+
+# Register Parallels RAS with the license key
+New-RASSession -Username $retreivedData.localAdminUser -Password $localAdminPasswordSecure
 
 # Disable IE ESC for Administrators and users
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 1
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 1
-
-
-
