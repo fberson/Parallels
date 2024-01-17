@@ -4,51 +4,81 @@
 .NOTES  
     File Name  : RRAS_Azure_MP_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.7
-    Date       : Jan 16 2024
+    Version    : v0.0.8
+    Date       : Jan 17 2024
 .EXAMPLE
     .\RRAS_Azure_MP_Install.ps1
 #>
 
 #Collect Parameters
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$localAdminUser,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$localAdminPassword,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$MyAccountEmail,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$MyAccountpassword,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$resourceID,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$tenantID,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$keyVaultName,
 
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true)]
     [string]$secretName
-
 )
+function Set-RunOnceScriptForAllUsers {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptPath
+    )
+
+    # Ensure the script file exists
+    if (-not (Test-Path $ScriptPath)) {
+        Write-Error "Script file does not exist at the specified path: $ScriptPath"
+        return
+    }
+
+    # Registry path for RunOnce in HKLM
+    $registryPath = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+
+    # Create a command to run PowerShell with the specified script
+    $command = "PowerShell -File `"$ScriptPath`""
+
+    # Add the command to the RunOnce registry key
+    try {
+        Set-ItemProperty -Path $registryPath -Name "RunMyScriptOnceForAllUsers" -Value $command
+        Write-Host "The script at '$ScriptPath' will be executed at the next logon of any user."
+    }
+    catch {
+        Write-Error "Failed to set registry value. Error: $_"
+    }
+}
+
+
+
+
 $hostname = hostname
 $localAdminPasswordSecure = ConvertTo-SecureString $localAdminPassword -AsPlainText -Force
 $MyAccountpassordSecure = ConvertTo-SecureString $MyAccountpassword -AsPlainText -Force
 $installPath = "C:\install"
 
 # Check if the install path already exists
-if (-not (Test-Path -Path $installPath)) {New-Item -Path $installPath -ItemType Directory}
+if (-not (Test-Path -Path $installPath)) { New-Item -Path $installPath -ItemType Directory }
 
 #Configute logging
 $Logfile = "C:\install\RAS_InstallScript.log"
-function WriteLog
-{
+function WriteLog {
     Param ([string]$LogString)
     $Stamp = (Get-Date).toString("yyyy/MM/dd HH:mm:ss")
     $LogMessage = "$Stamp $LogString"
@@ -75,9 +105,9 @@ $SubscriptionId = $parts[2]
 $data = @{
     SubscriptionId = $SubscriptionId
     localAdminUser = $localAdminUser
-    keyVaultName = $keyVaultName
-    secretName = $secretName
-    tenantID = $tenantID
+    keyVaultName   = $keyVaultName
+    secretName     = $secretName
+    tenantID       = $tenantID
 }
 
 # Convert the object to JSON
@@ -99,13 +129,14 @@ Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi /quiet /
 #Add all members from local administrators group user as root admin
 WriteLog "Configuring Root admins..."
 $allLocalAdmins = Get-LocalGroupMember -Group "Administrators"
-Foreach ($localAdmin in $allLocalAdmins)
-{
+Foreach ($localAdmin in $allLocalAdmins) {
     cmd /c "`"C:\Program Files (x86)\Parallels\ApplicationServer\x64\2XRedundancy.exe`" -c -AddRootAccount $localAdmin"
 }
 
 # Enable RAS PowerShell module
 Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
+
+Set-RunOnceScriptForAllUsers -ScriptPath 'C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.15\Downloads\0\RAS_Azure_MP_Register.ps1'
 
 #Create new RAS PowerShell Session
 New-RASSession -Username $localAdminUser -Password $localAdminPasswordSecure
