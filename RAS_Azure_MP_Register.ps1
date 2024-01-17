@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Register.ps1
     Author     : Freek Berson
-    Version    : v0.0.7
-    Date       : Jan 16 2024
+    Version    : v0.0.8
+    Date       : Jan 17 2024
 .EXAMPLE
     .\RAS_Azure_MP_Register.ps1
 #>
@@ -124,25 +124,25 @@ function get-resourceUsageId {
     
     $resourceUsageId = $resource.Properties.billingDetails.resourceUsageId
 
-    return $resourceUsageId[1]
+    return $resourceUsageId
 }
 
 function get-keyVaultSecret {
-    param {
+    param (
         [Parameter(Mandatory = $true)]
         [string]$keyVaultName,
         [Parameter(Mandatory = $true)]
         [string]$secretName
 
-    }
-    return = Get-AzKeyVaultSecret -VaultName $keyVaultName -Name $secretName
+    )
+    return Get-AzKeyVaultSecret -VaultName $keyVaultName -Name $secretName
 }
 
 # BEGIN SCRIPT
 
 Clear-Host
 
-Write-Host '*** This script will register Parallels RAS and import a license key ***' -ForegroundColor Green
+Write-Host `n'*** This script will register Parallels RAS and import a license key ***' -ForegroundColor Green
 Write-Host 'Please authenticate towards Azure to complete the setup.' `n
 
 $appPublisherName = 'Parallels'
@@ -172,6 +172,7 @@ Catch {
 try {
     import-AzureModule "Az.Accounts"
     import-AzureModule "Az.Resources"
+    import-AzureModule "Az.KeyVault"
 }
 Catch {
     Write-Host "ERROR: trying to import required modules import Az.Accounts, AzureAD, Az.Resources, Az.network, and Az.keyVault"
@@ -210,7 +211,7 @@ Catch {
 
 #Get the keyvault secret
 try {
-    $localAdminPasswordSecure = ConvertTo-SecureString (get-keyVaultSecret(-keyVaultName $retreivedData.keyVaultName -secretName $retreivedData.secretName)) -AsPlainText -Force
+    $localAdminPasswordSecure = (get-keyVaultSecret -keyVaultName $retreivedData.keyVaultName -secretName $retreivedData.secretName).secretValue
 }
 Catch {
     Write-Host "ERROR: trying to read resource usage id from managed app"
@@ -219,11 +220,18 @@ Catch {
 }
 
 #Contact MA to get Parallels RAS License key
-Write-Host $resourceUsageId[1]
+#Write-Host $resourceUsageId[1]
 
 # Register Parallels RAS with the license key
 New-RASSession -Username $retreivedData.localAdminUser -Password $localAdminPasswordSecure
+invoke-RASApply
+Remove-RASSession
 
 # Disable IE ESC for Administrators and users
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 1
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 1
+
+Write-Host 'Registration of Parallels RAS is completed.' `n
+Read-Host "Press any key to open the Parallels RAS console..."
+
+Start-Process -FilePath "C:\Program Files (x86)\Parallels\ApplicationServer\2XConsole.exe"
