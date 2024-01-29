@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Register.ps1
     Author     : Freek Berson
-    Version    : v0.0.8
-    Date       : Jan 17 2024
+    Version    : v0.0.11
+    Date       : Jan 29 2024
 .EXAMPLE
     .\RAS_Azure_MP_Register.ps1
 #>
@@ -220,7 +220,7 @@ Catch {
 }
 
 #Contact MA to get Parallels RAS License key
-#Write-Host $resourceUsageId[1]
+Write-Host $resourceUsageId[1]
 
 # Register Parallels RAS with the license key
 New-RASSession -Username $retreivedData.localAdminUser -Password $localAdminPasswordSecure
