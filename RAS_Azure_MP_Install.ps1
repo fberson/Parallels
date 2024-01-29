@@ -2,12 +2,12 @@
 .SYNOPSIS  
     PArallels RAS auto-deploy script for Azure MarketPlace Deployments
 .NOTES  
-    File Name  : RRAS_Azure_MP_Install.ps1
+    File Name  : RAS_Azure_MP_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.8
-    Date       : Jan 17 2024
+    Version    : v0.0.11
+    Date       : Jan 29 2024
 .EXAMPLE
-    .\RRAS_Azure_MP_Install.ps1
+    .\RAS_Azure_MP_Install.ps1
 #>
 
 #Collect Parameters
@@ -77,7 +77,7 @@ $installPath = "C:\install"
 if (-not (Test-Path -Path $installPath)) { New-Item -Path $installPath -ItemType Directory }
 
 #Configute logging
-$Logfile = "C:\install\RAS_InstallScript.log"
+$Logfile = "C:\install\RAS_Azure_MP_Install.log"
 function WriteLog {
     Param ([string]$LogString)
     $Stamp = (Get-Date).toString("yyyy/MM/dd HH:mm:ss")
@@ -88,6 +88,9 @@ function WriteLog {
 #Set variables
 $EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi'
+
+#Disable Server Manager from starting at logon
+schtasks /Change /TN "Microsoft\Windows\Server Manager\ServerManager"  /Disable
 
 # Disable IE ESC for Administrators and users
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
