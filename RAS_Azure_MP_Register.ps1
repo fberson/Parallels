@@ -223,7 +223,7 @@ Catch {
 Write-Host $resourceUsageId[1]
 
 # Register Parallels RAS with the license key
-New-RASSession -Username $retreivedData.localAdminUser -Password $localAdminPasswordSecure
+New-RASSession -Username $retreivedData.domainJoinUserName -Password $localAdminPasswordSecure
 invoke-RASApply
 Remove-RASSession
 
