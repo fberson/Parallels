@@ -13,10 +13,13 @@
 #Collect Parameters
 param(
     [Parameter(Mandatory = $true)]
-    [string]$localAdminUser,
+    [string]$domainJoinUserName,
 
     [Parameter(Mandatory = $true)]
-    [string]$localAdminPassword,
+    [string]$domainJoinPassword,
+
+    [Parameter(Mandatory = $true)]
+    [string]$domainName,
 
     [Parameter(Mandatory = $true)]
     [string]$resourceID,
@@ -140,7 +143,6 @@ function Set-RunOnceScriptForAllUsers {
     }
 }
 
-$localAdminPasswordSecure = ConvertTo-SecureString $localAdminPassword -AsPlainText -Force
 $installPath = "C:\install"
 
 # Check if the install path already exists
@@ -187,7 +189,7 @@ $SubscriptionId = $parts[2]
 # Create a PowerShell object with the extracted values
 $data = @{
     SubscriptionId = $SubscriptionId
-    localAdminUser = $localAdminUser
+    domainJoinUserName = $domainJoinUserName
     keyVaultName   = $keyVaultName
     secretName     = $secretName
     tenantID       = $tenantID
@@ -223,6 +225,6 @@ Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdm
 Set-RunOnceScriptForAllUsers -ScriptPath 'C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.15\Downloads\0\RAS_Azure_MP_Register.ps1'
 
 #Create new RAS PowerShell Session
-New-RASSession -Username $localAdminUser -Password $localAdminPasswordSecure
+New-RASSession -Username $domainJoinUserName -Password $domainJoinPassword
 
 WriteLog "Finished installing RAS..."
