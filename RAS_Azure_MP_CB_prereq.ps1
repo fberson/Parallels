@@ -19,22 +19,38 @@ param(
     [string]$domainJoinPassword,
 
     [Parameter(Mandatory = $true)]
-    [string]$domainName
+    [string]$domainName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$primaryConnectionBroker,
+
+    [Parameter(Mandatory = $true)]
+    [string]$numberofCBs,
+
+    [Parameter(Mandatory = $true)]
+    [string]$numberofSGs,
+
+    [Parameter(Mandatory = $true)]
+    [string]$prefixCBName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$prefixSGName
 )
 
 #Set variables
 $EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi'
 $installPath = "C:\install"
+$secdomainJoinPassword = ConvertTo-SecureString $domainJoinPassword -AsPlainText -Force
 
 function New-ImpersonateUser {
 
     [cmdletbinding()]
     Param( 
-        [Parameter(ParameterSetName="ClearText", Mandatory=$true)][string]$Username, 
-        [Parameter(ParameterSetName="ClearText", Mandatory=$true)][string]$Domain, 
-        [Parameter(ParameterSetName="ClearText", Mandatory=$true)][string]$Password, 
-        [Parameter(ParameterSetName="Credential", Mandatory=$true, Position=0)][PSCredential]$Credential, 
+        [Parameter(ParameterSetName = "ClearText", Mandatory = $true)][string]$Username, 
+        [Parameter(ParameterSetName = "ClearText", Mandatory = $true)][string]$Domain, 
+        [Parameter(ParameterSetName = "ClearText", Mandatory = $true)][string]$Password, 
+        [Parameter(ParameterSetName = "Credential", Mandatory = $true, Position = 0)][PSCredential]$Credential, 
         [Parameter()][Switch]$Quiet 
     ) 
  
@@ -56,7 +72,7 @@ function New-ImpersonateUser {
     #Pass the PSCredentials to the variables to be sent to the LogonUser method
     if ($Credential) { 
         Get-Variable Username, Domain, Password | ForEach-Object { 
-            Set-Variable $_.Name -Value $Credential.GetNetworkCredential().$($_.Name)} 
+            Set-Variable $_.Name -Value $Credential.GetNetworkCredential().$($_.Name) } 
     } 
  
     #Call LogonUser and store its success. [ref]$tokenHandle is used to store the token "out IntPtr token" from LogonUser.
@@ -119,7 +135,8 @@ function WriteLog {
 
 #Create Firewall Rules
 WriteLog "Configuring Firewall Rules"
-New-NetFirewallRule -DisplayName "Allow TCP 135, 445, 20001, 200002, 200003 20030 for RAS Administration" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 135, 445, 20001,20002,20003,20030
+New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 68, 80, 81, 1234, 135, 443, 445, 20001, 20002, 20003, 20009, 20020, 20030, 20443, 30004, 30006
+New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 80, 443, 20000, 20009, 30004, 30006
 
 #Disable UAC & Sharing Wizard to allow Remote Install of RAS Agent
 WriteLog "Disable UAC & Sharing Wizard"
@@ -138,8 +155,33 @@ New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password
 
 #Install RAS Connection Broker role
 WriteLog "Install Connection Broker role"
-Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Controller /qn /log C:\install\RAS_Install.log" -Wait
+Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Controller,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
 cmd /c "`"C:\Program Files (x86)\Parallels\ApplicationServer\x64\2XRedundancy.exe`" -c -AddRootAccount $domainJoinUserName"
+
+# Enable RAS PowerShell module
+Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
+
+#Create new RAS PowerShell Session
+New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
+
+if ($primaryConnectionBroker -eq $env:computername) {
+    #Add secondary Connection Brokers
+    for ($i = 2; $i -le $numberofCBs; $i++) {
+        $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
+        write-host $connectionBroker
+        New-RASBroker -Server $connectionBroker
+    }
+    Invoke-RASApply
+
+    #Add Secure Gateways
+    for ($i = 1; $i -le $numberofSGs; $i++) {
+        $secureGateway = $prefixSGName + "-" + $i + "." + $domainName
+        New-RASGateway -Server $secureGateway
+    }
+    Invoke-RASApply
+}
+
+Remove-RASSession
 
 #Remove impersonation
 Remove-ImpersonateUser
