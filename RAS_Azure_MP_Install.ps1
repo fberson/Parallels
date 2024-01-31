@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.11
-    Date       : Jan 29 2024
+    Version    : v0.0.12
+    Date       : Jan 31 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
 #>
