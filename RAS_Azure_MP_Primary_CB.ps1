@@ -147,8 +147,9 @@ WriteLog "Dowloading most recent Parallels RAS Installer"
 $RASMedia = New-Object net.webclient
 $RASMedia.Downloadfile($EvergreenURL, $Temploc)
 
-#Impersonate user to install RAS
+#Impersonate user with local admin permissins to install RAS
 WriteLog "Impersonating user"
+Add-LocalGroupMember -Group "Administrators" -Member $domainJoinUserName
 New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password $domainJoinPassword
 
 #Install RAS Connection Broker role
