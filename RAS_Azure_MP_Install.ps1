@@ -221,8 +221,9 @@ $RASMedia = New-Object net.webclient
 $RASMedia.Downloadfile($EvergreenURL, $Temploc)
 WriteLog "Dowloading most recent Parallels RAS Installer done"
 
-#Impersonate user to install RAS
+#Impersonate user with local admin permissions to install RAS
 WriteLog "Impersonating user"
+Add-LocalGroupMember -Group "Administrators" -Member $domainJoinUserName
 New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password $domainJoinPassword
 
 #Install RAS Console & PowerShell role
