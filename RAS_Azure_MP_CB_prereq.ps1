@@ -144,27 +144,27 @@ Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\C
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\policies\system -Name EnableLUA -Value 0
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Folder\SharingWizardOn -Name CheckedValue -Value 0
 
-#Download the latest RAS installer
-WriteLog "Dowloading most recent Parallels RAS Installer"
-$RASMedia = New-Object net.webclient
-$RASMedia.Downloadfile($EvergreenURL, $Temploc)
-
-#Impersonate user to install RAS
-WriteLog "Impersonating user"
-New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password $domainJoinPassword
-
-#Install RAS Connection Broker role
-WriteLog "Install Connection Broker role"
-Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Controller,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
-cmd /c "`"C:\Program Files (x86)\Parallels\ApplicationServer\x64\2XRedundancy.exe`" -c -AddRootAccount $domainJoinUserName"
-
-# Enable RAS PowerShell module
-Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
-
 #Create new RAS PowerShell Session
 New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
 
 if ($primaryConnectionBroker -eq $env:computername) {
+    #Download the latest RAS installer
+    WriteLog "Dowloading most recent Parallels RAS Installer"
+    $RASMedia = New-Object net.webclient
+    $RASMedia.Downloadfile($EvergreenURL, $Temploc)
+
+    #Impersonate user to install RAS
+    WriteLog "Impersonating user"
+    New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password $domainJoinPassword
+
+    #Install RAS Connection Broker role
+    WriteLog "Install Connection Broker role"
+    Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Controller,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
+    cmd /c "`"C:\Program Files (x86)\Parallels\ApplicationServer\x64\2XRedundancy.exe`" -c -AddRootAccount $domainJoinUserName"
+
+    # Enable RAS PowerShell module
+    Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
+
     #Add secondary Connection Brokers
     for ($i = 2; $i -le $numberofCBs; $i++) {
         $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
@@ -179,9 +179,10 @@ if ($primaryConnectionBroker -eq $env:computername) {
         New-RASGateway -Server $secureGateway
     }
     Invoke-RASApply
+
+    Remove-RASSession
 }
 
-Remove-RASSession
 
 #Remove impersonation
 Remove-ImpersonateUser
