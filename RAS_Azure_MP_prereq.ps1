@@ -28,7 +28,7 @@ function WriteLog {
 #Create Firewall Rules
 WriteLog "Configuring Firewall Rules"
 New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 68, 80, 81, 1234, 135, 443, 445, 20001, 20002, 20003, 20009, 20020, 20030, 20443, 30004, 30006
-New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 80, 443, 20000, 20009, 30004, 30006
+New-NetFirewallRule -DisplayName "Parallels RAS Administration (UDP)" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 80, 443, 20000, 20009, 30004, 30006
 
 #Disable UAC & Sharing Wizard to allow Remote Install of RAS Agent
 WriteLog "Disable UAC & Sharing Wizard"
