@@ -10,6 +10,13 @@
     .\RAS_Azure_MP_prereq.ps1
 #>
 
+#Collect Parameters
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$domainJoinUserName
+)
+
+
 #Set variables
 $installPath = "C:\install"
 
@@ -35,3 +42,6 @@ WriteLog "Disable UAC & Sharing Wizard"
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System -Name ConsentPromptBehaviorAdmin -Value 0
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\policies\system -Name EnableLUA -Value 0
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Folder\SharingWizardOn -Name CheckedValue -Value 0
+
+# Add Parallels RAS install user to local administrators group
+Add-LocalGroupMember -Group "Administrators" -Member $domainJoinUserName
