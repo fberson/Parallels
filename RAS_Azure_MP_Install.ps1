@@ -34,8 +34,24 @@ param(
     [string]$secretName,
 
     [Parameter(Mandatory = $true)]
+    [string]$primaryConnectionBroker,
+
+    [Parameter(Mandatory = $true)]
+    [string]$numberofCBs,
+
+    [Parameter(Mandatory = $true)]
+    [string]$numberofSGs,
+
+    [Parameter(Mandatory = $true)]
+    [string]$prefixCBName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$prefixSGName,
+
+    [Parameter(Mandatory = $true)]
     [string]$customerUsageAttributionID
 )
+
 
 function New-ImpersonateUser {
 
@@ -143,6 +159,10 @@ function Set-RunOnceScriptForAllUsers {
     }
 }
 
+#Set variables
+$EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
+$Temploc = 'C:\install\RASInstaller.msi'
+$secdomainJoinPassword = ConvertTo-SecureString $domainJoinPassword -AsPlainText -Force
 $installPath = "C:\install"
 
 # Check if the install path already exists
@@ -157,10 +177,6 @@ function WriteLog {
     Add-content $LogFile -value $LogMessage
 }
 
-#Set variables
-$EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
-$Temploc = 'C:\install\RASInstaller.msi'
-
 #Disable Server Manager from starting at logon
 schtasks /Change /TN "Microsoft\Windows\Server Manager\ServerManager"  /Disable
 
@@ -170,17 +186,14 @@ Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Componen
 
 #Create Firewall Rules
 WriteLog "Configuring Firewall Rules"
-New-NetFirewallRule -DisplayName "Allow TCP 135, 445, 20001, 200002, 200003 20030 for RAS Administration" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 135, 445, 20001,20002,20003,20030
+New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 68, 80, 81, 1234, 135, 443, 445, 20001, 20002, 20003, 20009, 20020, 20030, 20443, 30004, 30006
+New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 80, 443, 20000, 20009, 30004, 30006
 
 #Disable UAC & Sharing Wizard to allow Remote Install of RAS Agent
 WriteLog "Disable UAC & Sharing Wizard"
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System -Name ConsentPromptBehaviorAdmin -Value 0
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\policies\system -Name EnableLUA -Value 0
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Folder\SharingWizardOn -Name CheckedValue -Value 0
-
-#Log The ResourceUsageId
-WriteLog "customerUsageAttributionID:"
-WriteLog $customerUsageAttributionID
 
 # Split the string and extract values
 $parts = $resourceID -split '/'
@@ -216,15 +229,18 @@ New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password
 WriteLog "Install Connection Broker role"
 Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Console,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
 
-#Remove impersonation
-Remove-ImpersonateUser
-
 # Enable RAS PowerShell module
 Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
 
+#Create new RAS PowerShell Session
+New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
+
+#Deploy Run Once script to launch post deployment actions at next admin logon
 Set-RunOnceScriptForAllUsers -ScriptPath 'C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.15\Downloads\0\RAS_Azure_MP_Register.ps1'
 
-#Create new RAS PowerShell Session
-New-RASSession -Username $domainJoinUserName -Password $domainJoinPassword
+Remove-RASSession
+
+#Remove impersonation
+Remove-ImpersonateUser
 
 WriteLog "Finished installing RAS..."
