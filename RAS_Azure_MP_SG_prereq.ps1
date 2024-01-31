@@ -120,27 +120,14 @@ function WriteLog {
 
 #Create Firewall Rules
 WriteLog "Configuring Firewall Rules"
-New-NetFirewallRule -DisplayName "Allow TCP 80, 81, 135, 443, 445 and 20009, 200020, 49179 for RAS Administration" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 80, 81, 135, 443, 445, 20009, 20020, 49179
-New-NetFirewallRule -DisplayName "Allow UDP 20009,20020" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 20009,20020
+New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 68, 80, 81, 1234, 135, 443, 445, 20001, 20002, 20003, 20009, 20020, 20030, 20443, 30004, 30006
+New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 80, 443, 20000, 20009, 30004, 30006
 
 #Disable UAC & Sharing Wizard to allow Remote Install of RAS Agent
 WriteLog "Disable UAC & Sharing Wizard"
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Policies\System -Name ConsentPromptBehaviorAdmin -Value 0
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\policies\system -Name EnableLUA -Value 0
 Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Folder\SharingWizardOn -Name CheckedValue -Value 0
-
-#Download the latest RAS installer
-WriteLog "Dowloading most recent Parallels RAS Installer"
-$RASMedia = New-Object net.webclient
-$RASMedia.Downloadfile($EvergreenURL, $Temploc)
-
-#Impersonate user to install RAS
-WriteLog "Impersonating user"
-New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName -Password $domainJoinPassword
-
-#Install RAS Secure Gateway role
-WriteLog "Install Secure Gateway role"
-Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Gateway /qn /log C:\install\RAS_Install.log" -Wait
 
 #Remove impersonation
 Remove-ImpersonateUser
