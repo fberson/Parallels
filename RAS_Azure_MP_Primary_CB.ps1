@@ -160,8 +160,9 @@ New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -S
 #Add secondary Connection Brokers
 for ($i = 2; $i -le $numberofCBs; $i++) {
     $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
-    write-host $connectionBroker
     New-RASBroker -Server $connectionBroker
+    Invoke-RASApply
+    Start-Sleep -Seconds 10
 }
 Invoke-RASApply
 
@@ -169,8 +170,9 @@ Invoke-RASApply
 for ($i = 1; $i -le $numberofSGs; $i++) {
     $secureGateway = $prefixSGName + "-" + $i + "." + $domainName
     New-RASGateway -Server $secureGateway
+    Invoke-RASApply
+    Start-Sleep -Seconds 10
 }
-Invoke-RASApply
 
 Remove-RASSession
 
