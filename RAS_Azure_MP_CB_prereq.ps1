@@ -139,6 +139,7 @@ New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password
 #Install RAS Connection Broker role
 WriteLog "Install Connection Broker role"
 Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Controller /qn /log C:\install\RAS_Install.log" -Wait
+cmd /c "`"C:\Program Files (x86)\Parallels\ApplicationServer\x64\2XRedundancy.exe`" -c -AddRootAccount $domainJoinUserName"
 
 #Remove impersonation
 Remove-ImpersonateUser
