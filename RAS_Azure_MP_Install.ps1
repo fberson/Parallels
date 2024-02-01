@@ -228,13 +228,6 @@ New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password
 WriteLog "Install Connection Broker role"
 Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Console,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
 
-# Enable RAS PowerShell module
-Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
-
-#Create new RAS PowerShell Session
-New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
-Remove-RASSession
-
 #Remove impersonation
 Remove-ImpersonateUser
 
