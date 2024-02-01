@@ -137,7 +137,6 @@ function get-keyVaultSecret {
 Clear-Host
 
 Write-Host `n'*** This script will register Parallels RAS and import a license key ***' -ForegroundColor Green
-Write-Host 'Please authenticate towards Azure to complete the setup.' `n
 
 # Disable IE ESC for Administrators and users
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 1
@@ -155,6 +154,7 @@ if (-not (Test-InternetConnection)) {
 
 #Check if NuGet 2.8.5.201 or higher is installed, if not install it
 try {
+    Write-Host 'Installing required Azure Powershell modules.' `n
     ConfigureNuGet
 }
 Catch {
@@ -187,6 +187,7 @@ Catch {
 
 # Connect to Azure and Azure AD
 try {
+    Write-Host 'Please authenticate towards Azure to complete the setup.' `n
     $currentUser = Connect-AzAccount -Tenant $retreivedData.tenantID
 }
 Catch {
@@ -196,6 +197,7 @@ Catch {
 
 #Get the resourceUsageId
 try {
+    Write-Host 'Performing post-installation steps...' `n
     $appPublisherName = $retreivedData.appPublisherName
     $appProductName = $retreivedData.appProductName
     $resourceUsageId = get-resourceUsageId -SubscriptionId $retreivedData.SubscriptionId -appPublisherName $appPublisherName -appProductName $appProductName
@@ -217,6 +219,7 @@ Catch {
 }
 
 #Contact MA to get Parallels RAS License key
+New-Item -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels' -Name 'ApplicationServer'
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'deployedByAzureMarketplace' -Value 1 -force
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureMarketplaceOfferId' -PropertyType MultiString -Value $resourceUsageId -force
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'customerUsageAttributionID' -PropertyType MultiString -Value $retreivedData.customerUsageAttributionID -force
