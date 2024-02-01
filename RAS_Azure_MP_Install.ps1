@@ -49,6 +49,12 @@ param(
     [string]$prefixSGName,
 
     [Parameter(Mandatory = $true)]
+    [string]$appPublisherName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$appProductName,
+
+    [Parameter(Mandatory = $true)]
     [string]$customerUsageAttributionID
 )
 
@@ -207,6 +213,9 @@ $data = @{
     secretName     = $secretName
     tenantID       = $tenantID
     customerUsageAttributionID = $customerUsageAttributionID
+    primaryConnectionBroker = $primaryConnectionBroker
+    appPublisherName = $appPublisherName
+    appProductName = $appProductName
 }
 
 # Convert the object to JSON
