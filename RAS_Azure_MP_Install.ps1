@@ -244,13 +244,12 @@ Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdm
 
 #Create new RAS PowerShell Session
 New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
-
-#Deploy Run Once script to launch post deployment actions at next admin logon
-Set-RunOnceScriptForAllUsers -ScriptPath 'C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.15\Downloads\0\RAS_Azure_MP_Register.ps1'
-
 Remove-RASSession
 
 #Remove impersonation
 Remove-ImpersonateUser
+
+#Deploy Run Once script to launch post deployment actions at next admin logon
+Set-RunOnceScriptForAllUsers -ScriptPath 'C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.15\Downloads\0\RAS_Azure_MP_Register.ps1'
 
 WriteLog "Finished installing RAS..."
