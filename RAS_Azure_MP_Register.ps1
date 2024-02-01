@@ -219,14 +219,14 @@ Catch {
 }
 
 #Contact MA to get Parallels RAS License key
-New-Item -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels' -Name 'ApplicationServer'
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'deployedByAzureMarketplace' -Value 1 -force
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureMarketplaceOfferId' -PropertyType MultiString -Value $resourceUsageId -force
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'customerUsageAttributionID' -PropertyType MultiString -Value $retreivedData.customerUsageAttributionID -force
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azuresubscriptionId' -PropertyType MultiString -Value $retreivedData.SubscriptionId -force
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureTenantId' -PropertyType MultiString -Value $retreivedData.tenantID -force
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'appPublisherName' -PropertyType MultiString -Value $retreivedData.appPublisherName -force
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'appProductName' -PropertyType MultiString -Value $retreivedData.appProductName -force
+New-Item -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels' -Name 'ApplicationServer' | Out-Null
+c -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'deployedByAzureMarketplace' -Value 1 -force | Out-Null
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureMarketplaceOfferId' -PropertyType MultiString -Value $resourceUsageId -force | Out-Null
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'customerUsageAttributionID' -PropertyType MultiString -Value $retreivedData.customerUsageAttributionID[1] -force | Out-Null
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azuresubscriptionId' -PropertyType MultiString -Value $retreivedData.SubscriptionId -force | Out-Null
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureTenantId' -PropertyType MultiString -Value $retreivedData.tenantID -force | Out-Null
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'appPublisherName' -PropertyType MultiString -Value $retreivedData.appPublisherName -force | Out-Null
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'appProductName' -PropertyType MultiString -Value $retreivedData.appProductName -force | Out-Null
 
 # Register Parallels RAS with the license key
 New-RASSession -Username $retreivedData.domainJoinUserName -Password $localAdminPasswordSecure -Server $retreivedData.primaryConnectionBroker
