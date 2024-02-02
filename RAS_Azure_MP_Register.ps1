@@ -220,7 +220,7 @@ Catch {
 
 #Contact MA to get Parallels RAS License key
 New-Item -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels' -Name 'ApplicationServer' | Out-Null
-c -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'deployedByAzureMarketplace' -Value 1 -force | Out-Null
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'deployedByAzureMarketplace' -Value 1 -force | Out-Null
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureMarketplaceOfferId' -PropertyType MultiString -Value $resourceUsageId -force | Out-Null
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'customerUsageAttributionID' -PropertyType MultiString -Value $retreivedData.customerUsageAttributionID[1] -force | Out-Null
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azuresubscriptionId' -PropertyType MultiString -Value $retreivedData.SubscriptionId -force | Out-Null
