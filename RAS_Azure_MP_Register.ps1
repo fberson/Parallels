@@ -139,8 +139,8 @@ Clear-Host
 Write-Host `n'*** This script will register Parallels RAS and import a license key ***' -ForegroundColor Green
 
 # Disable IE ESC for Administrators and users
-Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 1
-Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 1
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
 
 if (-not (IsSupportedOS)) {
     Read-Host "Press any key to continue..."
@@ -165,7 +165,7 @@ Catch {
 
 # Check and import the required Azure PowerShell module
 try {
-    import-AzureModule "Az.Accounts"
+    #import-AzureModule "Az.Accounts"
     import-AzureModule "Az.Resources"
     import-AzureModule "Az.KeyVault"
 }
