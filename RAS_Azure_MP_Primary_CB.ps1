@@ -41,6 +41,9 @@ $installPath = "C:\install"
 $secdomainJoinPassword = ConvertTo-SecureString $domainJoinPassword -AsPlainText -Force
 $primaryConnectionBroker = $prefixCBName + "-1" + "." + $domainName
 
+#Set Windows Update to "Download Only" to prevent automatic installation of updates
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 2
+
 function New-ImpersonateUser {
 
     [cmdletbinding()]
@@ -152,12 +155,16 @@ Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRUL
 cmd /c "`"C:\Program Files (x86)\Parallels\ApplicationServer\x64\2XRedundancy.exe`" -c -AddRootAccount $domainJoinUserName"
 
 # Enable RAS PowerShell module
+WriteLog "Import RAS PowerShell Module"
 Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
 
 #Create new RAS PowerShell Session
+WriteLog "Creat new RAS PowerShell Session"
+start-sleep -Seconds 30
 New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
 
 #Add secondary Connection Brokers
+WriteLog "Add secondary Connection Brokers"
 for ($i = 2; $i -le $numberofCBs; $i++) {
     $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
     New-RASBroker -Server $connectionBroker
@@ -167,6 +174,7 @@ for ($i = 2; $i -le $numberofCBs; $i++) {
 Invoke-RASApply
 
 #Add Secure Gateways
+WriteLog "Add secure gateways"
 for ($i = 1; $i -le $numberofSGs; $i++) {
     $secureGateway = $prefixSGName + "-" + $i + "." + $domainName
     New-RASGateway -Server $secureGateway
@@ -174,7 +182,8 @@ for ($i = 1; $i -le $numberofSGs; $i++) {
     Start-Sleep -Seconds 10
 }
 
+WriteLog "revoke RAS PowerShell Session"
 Remove-RASSession
 
-#Remove impersonation
+WriteLog "Remove impersonation"
 Remove-ImpersonateUser
