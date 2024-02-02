@@ -168,8 +168,10 @@ function Set-RunOnceScriptForAllUsers {
 #Set variables
 $EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi'
-$secdomainJoinPassword = ConvertTo-SecureString $domainJoinPassword -AsPlainText -Force
 $installPath = "C:\install"
+
+#Set Windows Update to "Download Only" to prevent automatic installation of updates
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 2
 
 # Check if the install path already exists
 if (-not (Test-Path -Path $installPath)) { New-Item -Path $installPath -ItemType Directory }
