@@ -1,8 +1,8 @@
 <#  
 .SYNOPSIS  
-    Parallels RAS Connection Broker prereq script Azure MarketPlace Deployments
+    PArallels RAS auto-deploy script for Azure MarketPlace Deployments
 .NOTES  
-    File Name  : RAS_Azure_MP_Primary_CB.ps1
+    File Name  : RAS_Azure_MP_Install.ps1
     Author     : Freek Berson
     Version    : v0.0.12
     Date       : Jan 31 2024
@@ -22,6 +22,21 @@ param(
     [string]$domainName,
 
     [Parameter(Mandatory = $true)]
+    [string]$resourceID,
+
+    [Parameter(Mandatory = $true)]
+    [string]$tenantID,
+
+    [Parameter(Mandatory = $true)]
+    [string]$keyVaultName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$secretName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$primaryConnectionBroker,
+
+    [Parameter(Mandatory = $true)]
     [string]$numberofCBs,
 
     [Parameter(Mandatory = $true)]
@@ -34,28 +49,24 @@ param(
     [string]$prefixSGName,
 
     [Parameter(Mandatory = $true)]
-    [string]$RasAdminsGroupAD 
-    
+    [string]$appPublisherName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$appProductName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$customerUsageAttributionID
 )
 
-#Set variables
-$EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
-$Temploc = 'C:\install\RASInstaller.msi'
-$installPath = "C:\install"
-$secdomainJoinPassword = ConvertTo-SecureString $domainJoinPassword -AsPlainText -Force
-$primaryConnectionBroker = $prefixCBName + "-1" + "." + $domainName
-
-#Set Windows Update to "Download Only" to prevent automatic installation of updates
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 1
 
 function New-ImpersonateUser {
 
     [cmdletbinding()]
     Param( 
-        [Parameter(ParameterSetName = "ClearText", Mandatory = $true)][string]$Username, 
-        [Parameter(ParameterSetName = "ClearText", Mandatory = $true)][string]$Domain, 
-        [Parameter(ParameterSetName = "ClearText", Mandatory = $true)][string]$Password, 
-        [Parameter(ParameterSetName = "Credential", Mandatory = $true, Position = 0)][PSCredential]$Credential, 
+        [Parameter(ParameterSetName="ClearText", Mandatory=$true)][string]$Username, 
+        [Parameter(ParameterSetName="ClearText", Mandatory=$true)][string]$Domain, 
+        [Parameter(ParameterSetName="ClearText", Mandatory=$true)][string]$Password, 
+        [Parameter(ParameterSetName="Credential", Mandatory=$true, Position=0)][PSCredential]$Credential, 
         [Parameter()][Switch]$Quiet 
     ) 
  
@@ -77,7 +88,7 @@ function New-ImpersonateUser {
     #Pass the PSCredentials to the variables to be sent to the LogonUser method
     if ($Credential) { 
         Get-Variable Username, Domain, Password | ForEach-Object { 
-            Set-Variable $_.Name -Value $Credential.GetNetworkCredential().$($_.Name) } 
+            Set-Variable $_.Name -Value $Credential.GetNetworkCredential().$($_.Name)} 
     } 
  
     #Call LogonUser and store its success. [ref]$tokenHandle is used to store the token "out IntPtr token" from LogonUser.
@@ -125,12 +136,48 @@ function New-ImpersonateUser {
         Remove-Item Function:\Remove-ImpersonateUser 
     } 
 }
+function Set-RunOnceScriptForAllUsers {
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory = $true)]
+        [string]$ScriptPath
+    )
+
+    # Ensure the script file exists
+    if (-not (Test-Path $ScriptPath)) {
+        Write-Error "Script file does not exist at the specified path: $ScriptPath"
+        return
+    }
+
+    # Registry path for RunOnce in HKLM
+    $registryPath = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
+
+    # Create a command to run PowerShell with the specified script
+    $command = "PowerShell -File `"$ScriptPath`""
+
+    # Add the command to the RunOnce registry key
+    try {
+        Set-ItemProperty -Path $registryPath -Name "RunMyScriptOnceForAllUsers" -Value $command
+        Write-Host "The script at '$ScriptPath' will be executed at the next logon of any user."
+    }
+    catch {
+        Write-Error "Failed to set registry value. Error: $_"
+    }
+}
+
+#Set variables
+$EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
+$Temploc = 'C:\install\RASInstaller.msi'
+$installPath = "C:\install"
+
+#Set Windows Update to "Download Only" to prevent automatic installation of updates
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 2
 
 # Check if the install path already exists
 if (-not (Test-Path -Path $installPath)) { New-Item -Path $installPath -ItemType Directory }
 
 #Configute logging
-$Logfile = "C:\install\RAS_Azure_MP_CB_prereq.log"
+$Logfile = "C:\install\RAS_Azure_MP_Install.log"
 function WriteLog {
     Param ([string]$LogString)
     $Stamp = (Get-Date).toString("yyyy/MM/dd HH:mm:ss")
@@ -138,61 +185,55 @@ function WriteLog {
     Add-content $LogFile -value $LogMessage
 }
 
-#Create Firewall Rules
-WriteLog "Configuring Firewall Rules"
-New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 68, 80, 81, 1234, 135, 443, 445, 20001, 20002, 20003, 20009, 20020, 20030, 20443, 30004, 30006
-New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol UDP -LocalPort 80, 443, 20000, 20009, 30004, 30006
+#Disable Server Manager from starting at logon
+schtasks /Change /TN "Microsoft\Windows\Server Manager\ServerManager"  /Disable
 
-#Download the latest RAS installer
+# Disable IE ESC for Administrators and users
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
+Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
+
+# Split the string and extract values
+$parts = $resourceID -split '/'
+$SubscriptionId = $parts[2]
+
+# Create a PowerShell object with the extracted values
+$data = @{
+    SubscriptionId = $SubscriptionId
+    domainJoinUserName = $domainJoinUserName
+    keyVaultName   = $keyVaultName
+    secretName     = $secretName
+    tenantID       = $tenantID
+    customerUsageAttributionID = $customerUsageAttributionID
+    primaryConnectionBroker = $primaryConnectionBroker
+    appPublisherName = $appPublisherName
+    appProductName = $appProductName
+}
+
+# Convert the object to JSON
+$json = $data | ConvertTo-Json
+
+# Write the JSON to a file
+$json | Out-File -FilePath "C:\install\output.json"
+
+#Download the latest RAS installer 
 WriteLog "Dowloading most recent Parallels RAS Installer"
 $RASMedia = New-Object net.webclient
 $RASMedia.Downloadfile($EvergreenURL, $Temploc)
+WriteLog "Dowloading most recent Parallels RAS Installer done"
 
-#Impersonate user with local admin permissins to install RAS
+#Impersonate user with local admin permissions to install RAS and administrators to manage RAS
 WriteLog "Impersonating user"
 Add-LocalGroupMember -Group "Administrators" -Member $domainJoinUserName
 New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password $domainJoinPassword
 
-#Install RAS Connection Broker role
-WriteLog "Install Connection Broker role"
-Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Controller,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
-cmd /c "`"C:\Program Files (x86)\Parallels\ApplicationServer\x64\2XRedundancy.exe`" -c -AddRootAccount $domainJoinUserName"
+#Install RAS Console & PowerShell role
+WriteLog "Install Parallels RAS Console and Powershell role"
+Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Console,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
 
-# Enable RAS PowerShell module
-WriteLog "Import RAS PowerShell Module"
-Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
-
-#Create new RAS PowerShell Session
-start-sleep -Seconds 30
-WriteLog "Creat new RAS PowerShell Session"
-New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
-
-#Add AD group as RAS Admins
-WriteLog "Add AD group as RAS Admins"
-New-RASAdminAccount $RasAdminsGroupAD
-
-
-#Add secondary Connection Brokers
-WriteLog "Add secondary Connection Brokers"
-for ($i = 2; $i -le $numberofCBs; $i++) {
-    $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
-    New-RASBroker -Server $connectionBroker
-    Invoke-RASApply
-    Start-Sleep -Seconds 10
-}
-Invoke-RASApply
-
-#Add Secure Gateways
-WriteLog "Add secure gateways"
-for ($i = 1; $i -le $numberofSGs; $i++) {
-    $secureGateway = $prefixSGName + "-" + $i + "." + $domainName
-    New-RASGateway -Server $secureGateway
-    Invoke-RASApply
-    Start-Sleep -Seconds 10
-}
-
-WriteLog "Remove RAS PowerShell Session"
-Remove-RASSession
-
-WriteLog "Remove impersonation"
+#Remove impersonation
 Remove-ImpersonateUser
+
+#Deploy Run Once script to launch post deployment actions at next admin logon
+Set-RunOnceScriptForAllUsers -ScriptPath 'C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.15\Downloads\0\RAS_Azure_MP_Register.ps1'
+
+WriteLog "Finished installing RAS..."
