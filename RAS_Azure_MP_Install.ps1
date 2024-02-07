@@ -170,8 +170,8 @@ $EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi'
 $installPath = "C:\install"
 
-#Set Windows Update to "Download Only" to prevent automatic installation of updates
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 2
+#Set Windows Update to "NoAutoUpdate" to prevent automatic installation of updates
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 1
 
 # Check if the install path already exists
 if (-not (Test-Path -Path $installPath)) { New-Item -Path $installPath -ItemType Directory }
@@ -228,7 +228,7 @@ New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password
 
 #Install RAS Console & PowerShell role
 WriteLog "Install Parallels RAS Console and Powershell role"
-Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Console,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
+Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Console,F_PowerShell /qn /norestart /log C:\install\RAS_Install.log" -Wait
 
 #Remove impersonation
 Remove-ImpersonateUser
