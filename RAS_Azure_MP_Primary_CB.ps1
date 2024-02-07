@@ -31,7 +31,11 @@ param(
     [string]$prefixCBName,
 
     [Parameter(Mandatory = $true)]
-    [string]$prefixSGName
+    [string]$prefixSGName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$RasAdminsGroupAD 
+    
 )
 
 #Set variables
@@ -159,9 +163,14 @@ WriteLog "Import RAS PowerShell Module"
 Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
 
 #Create new RAS PowerShell Session
-WriteLog "Creat new RAS PowerShell Session"
 start-sleep -Seconds 30
+WriteLog "Creat new RAS PowerShell Session"
 New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
+
+#Add AD group as RAS Admins
+WriteLog "Add AD group as RAS Admins"
+New-RASAdminAccount $RasAdminsGroupAD
+
 
 #Add secondary Connection Brokers
 WriteLog "Add secondary Connection Brokers"
@@ -182,7 +191,7 @@ for ($i = 1; $i -le $numberofSGs; $i++) {
     Start-Sleep -Seconds 10
 }
 
-WriteLog "revoke RAS PowerShell Session"
+WriteLog "Remove RAS PowerShell Session"
 Remove-RASSession
 
 WriteLog "Remove impersonation"
