@@ -49,9 +49,6 @@ param(
     [string]$prefixSGName,
 
     [Parameter(Mandatory = $true)]
-    [string]$RasAdminsGroupAD,
-
-    [Parameter(Mandatory = $true)]
     [string]$appPublisherName,
 
     [Parameter(Mandatory = $true)]
@@ -227,11 +224,10 @@ WriteLog "Dowloading most recent Parallels RAS Installer done"
 #Impersonate user with local admin permissions to install RAS and administrators to manage RAS
 WriteLog "Impersonating user"
 Add-LocalGroupMember -Group "Administrators" -Member $domainJoinUserName
-Add-LocalGroupMember -Group "Administrators" -Member $RasAdminsGroupAD 
 New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password $domainJoinPassword
 
 #Install RAS Console & PowerShell role
-WriteLog "Install Connection Broker role"
+WriteLog "Install Parallels RAS Console and Powershell role"
 Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Console,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
 
 #Remove impersonation
