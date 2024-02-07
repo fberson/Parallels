@@ -45,8 +45,8 @@ $installPath = "C:\install"
 $secdomainJoinPassword = ConvertTo-SecureString $domainJoinPassword -AsPlainText -Force
 $primaryConnectionBroker = $prefixCBName + "-1" + "." + $domainName
 
-#Set Windows Update to "Download Only" to prevent automatic installation of updates
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 2
+#Set Windows Update to "NoAutoUpdate" to prevent automatic installation of updates
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 1
 
 function New-ImpersonateUser {
 
@@ -163,7 +163,7 @@ WriteLog "Import RAS PowerShell Module"
 Import-Module 'C:\Program Files (x86)\Parallels\ApplicationServer\Modules\RASAdmin\RASAdmin.psd1'
 
 #Create new RAS PowerShell Session
-start-sleep -Seconds 30
+start-sleep -Seconds 10
 WriteLog "Creat new RAS PowerShell Session"
 New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -Server $primaryConnectionBroker
 
