@@ -4,7 +4,7 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Register.ps1
     Author     : Freek Berson
-    Version    : v0.0.11
+    Version    : v0.0.12
     Date       : Jan 29 2024
 .EXAMPLE
     .\RAS_Azure_MP_Register.ps1
@@ -221,6 +221,7 @@ Catch {
 #Contact MA to get Parallels RAS License key
 New-Item -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels' -Name 'ApplicationServer' | Out-Null
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'deployedByAzureMarketplace' -Value 1 -force | Out-Null
+New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureMarketplaceOfferId' -PropertyType MultiString -Value $resourceUsageId -force | Out-Null
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'customerUsageAttributionId' -PropertyType MultiString -Value $retreivedData.customerUsageAttributionID -force | Out-Null
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'managedAppResourceUsageId' -PropertyType MultiString -Value $resourceUsageId[1] -force | Out-Null
 New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azuresubscriptionId' -PropertyType MultiString -Value $retreivedData.SubscriptionId -force | Out-Null
