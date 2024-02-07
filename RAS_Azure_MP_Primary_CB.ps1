@@ -138,6 +138,9 @@ function WriteLog {
     Add-content $LogFile -value $LogMessage
 }
 
+#Set Windows Update to "Download Only" to prevent automatic installation of updates
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 2
+
 #Create Firewall Rules
 WriteLog "Configuring Firewall Rules"
 New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 68, 80, 81, 1234, 135, 443, 445, 20001, 20002, 20003, 20009, 20020, 20030, 20443, 30004, 30006
@@ -155,7 +158,7 @@ New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password
 
 #Install RAS Connection Broker role
 WriteLog "Install Connection Broker role"
-Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Controller,F_PowerShell /qn /log C:\install\RAS_Install.log" -Wait
+Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Controller,F_PowerShell /norestart /qn /log C:\install\RAS_Install.log" -Wait 
 cmd /c "`"C:\Program Files (x86)\Parallels\ApplicationServer\x64\2XRedundancy.exe`" -c -AddRootAccount $domainJoinUserName"
 
 # Enable RAS PowerShell module
@@ -170,7 +173,6 @@ New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -S
 #Add AD group as RAS Admins
 WriteLog "Add AD group as RAS Admins"
 New-RASAdminAccount $RasAdminsGroupAD
-
 
 #Add secondary Connection Brokers
 WriteLog "Add secondary Connection Brokers"
@@ -196,3 +198,6 @@ Remove-RASSession
 
 WriteLog "Remove impersonation"
 Remove-ImpersonateUser
+
+WriteLog "Restart to finish installation of RAS Connection Broker role"
+shutdown -r -f -t 0
