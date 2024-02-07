@@ -170,8 +170,8 @@ $EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi'
 $installPath = "C:\install"
 
-#Set Windows Update to "NoAutoUpdate" to prevent automatic installation of updates
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -Value 1
+#Set Windows Update to "Download Only" to prevent automatic installation of updates
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -Value 2
 
 # Check if the install path already exists
 if (-not (Test-Path -Path $installPath)) { New-Item -Path $installPath -ItemType Directory }
