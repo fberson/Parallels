@@ -28,8 +28,35 @@ if ($PSVersionTable.PSVersion -lt [Version]"7.3") {
     Write-host "Please execute with PowerShell version 7.3 or above" -ForegroundColor Red
     exit
 }
+#Collect Parameters
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$location,
 
-param([string]$localEnvJson = "")
+    [Parameter(Mandatory = $true)]
+    [string]$appRegistrationName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$keyVaultName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$resourceGroupNameInfra,
+
+    [Parameter(Mandatory = $true)]
+    [string]$resourceGroupNameVMs,
+
+    [Parameter(Mandatory = $true)]
+    [string]$azureTenantID,
+
+    [Parameter(Mandatory = $true)]
+    [string]$azureSubscriptionID,
+
+    [Parameter(Mandatory = $false)]
+    [string]$localEnvJson
+    
+)
+
+
 
 function import-AzureModule {
     param (
@@ -595,33 +622,6 @@ function add-AzureAppRegistrationPermissions {
 Clear-Host
 
 
-#Collect Parameters
-param(
-    [Parameter(Mandatory = $true)]
-    [string]$location,
-
-    [Parameter(Mandatory = $true)]
-    [string]$appRegistrationName,
-
-    [Parameter(Mandatory = $true)]
-    [string]$keyVaultName,
-
-    [Parameter(Mandatory = $true)]
-    [string]$adminAccountObjectID,
-
-    [Parameter(Mandatory = $true)]
-    [string]$resourceGroupNameInfra,
-
-    [Parameter(Mandatory = $true)]
-    [string]$resourceGroupNameVMs,
-
-    [Parameter(Mandatory = $true)]
-    [string]$azureTenantID,
-
-    [Parameter(Mandatory = $true)]
-    [string]$azureSubscriptionID 
-    
-)
 
 # Check and import the required Azure PowerShell module
 try {
