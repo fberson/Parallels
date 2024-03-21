@@ -1,5 +1,7 @@
 Write-host "Powershell version:"$PSVersionTable.PSVersion -ForegroundColor green
 
+
+
 #Collect Parameters
 param(
     [Parameter(Mandatory = $true)]
@@ -589,31 +591,21 @@ function add-AzureAppRegistrationPermissions {
     $AppReg | Update-AzADApplication -GroupMembershipClaim "SecurityGroup"
 }
 
-Clear-Host
-
-
 
 # Check and import the required Azure PowerShell module
 try {
+    Write-Host "import-AzureModule Az.Accounts"
     import-AzureModule "Az.Accounts"
+    Write-Host "import-AzureModule Az.Resources"
     import-AzureModule "Az.Resources"
+    Write-Host "import-AzureModule Az.keyVault"
     import-AzureModule "Az.keyVault"
 }
 Catch {
     Write-Host "ERROR: trying to import required modules import Az.Accounts, Az.Resources, and Az.keyVault"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
-
-# Connect to Azure account
-#try {
-#    $currentUser = Connect-AzAccount -AuthScope MicrosoftGraphEndpointResourceId
-#}
-#Catch {
-#    Write-Host "ERROR: trying to run Connect-AzAccount"
-#    Write-Host $_.Exception.Message
-#    exit
-#}
 
 # Set Tenant
 try {
@@ -622,7 +614,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to get Azure Tenants"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Provide list of available Azure subscriptions and allow setting active subscription
@@ -632,7 +624,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to set Azure subscription"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Provide list of available Azure locations and allow setting active location
@@ -642,7 +634,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to get Azure Location"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Register the required Azure resource providers
@@ -653,7 +645,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to register required Azure resource providers"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Create a custom role to allow adding and deleting role assinments
@@ -663,7 +655,7 @@ try {
 Catch {
     Write-Host "ERROR: creating custom role to allow adding and deleting role assinments"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 <#
@@ -700,7 +692,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to create the App Registration"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Assign Contributor role to the app registration on Infrastructure RG
@@ -710,7 +702,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to assign contributor role to the app registration on Infrastructure RG"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Assign Contributor role to the app registration on VMs RG
@@ -720,7 +712,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to assign contributor role to the app registration on VMs RG"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Set the required Graph API permissions on the created app registration
@@ -730,7 +722,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to set app registration Graph API permissions"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Create a client secret on the app registration and capture the secret key
@@ -740,7 +732,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to create the App Registration client secret"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Add DaaS Role Assignment Role permission on subscription to the app registration
@@ -750,7 +742,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to set User Access Administration role"
     WWrite-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Grant admin consent to an the app registration
@@ -760,7 +752,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to grant admin consent to an the app registration"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 # Add an Azure Keyvault and store the Client Secret in it
@@ -770,7 +762,7 @@ try {
 Catch {
     Write-Host "ERROR: trying to create a new Azure KeyVault and adding the client secret"
     Write-Host $_.Exception.Message
-    exit
+    #exit
 }
 
 #Create summary information
