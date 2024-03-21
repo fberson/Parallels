@@ -85,6 +85,7 @@ function add-AppRegistrationToCustomRole {
 }
 
 function new-AzureAppRegistration {
+    $appName = $appRegistrationName
     if (!($myApp = Get-AzADServicePrincipal -DisplayName $appName -ErrorAction SilentlyContinue)) {
         $myApp = New-AzADServicePrincipal -DisplayName $appName
     }
