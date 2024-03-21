@@ -1,33 +1,5 @@
-<#
-.SYNOPSIS
-    Script to prepare a Microsoft Azure subscription for use with Parallels DaaS // Desktop-as-a-Service
-.DESCRIPTION
-    The script will ask for Azure Tenant ID, Subscription ID, App name, location, infrastructure resource group name,
-    Virtual machines resource group name and Keyvault. It outputs the information needed to be passed in Parallels DaaS administrative portal during initial setup.
-.PARAMETER
-    None, all parameters are collected at runtime.
-.OUTPUTS
-    - Azure Tenant ID
-    - Azure Subscription ID
-    - Application client ID
-    - Client secrect value (stored in KeyVault)
-    - Infrastructure resource group name
-    - Virtual machines resource group name
-.NOTES
-    Copyright © 2024 Parallels International GmbH. All rights reserved.
-    Version: 1.0
-    Authors: Freek Berson, Sergii Shepelenko, John Zammit, Vasilis Koutsomanis, Mark Plettenberg
-    Last update: 24/01/24
-    Changelog:  1.0 - Initial published version
-.LICENSE
-    Released under the terms of MIT license (see LICENSE for details)
-#>
+Write-host "Powershell version:"$PSVersionTable.PSVersion -ForegroundColor green
 
-# Check the PowerShell version
-if ($PSVersionTable.PSVersion -lt [Version]"7.3") {
-    Write-host "Please execute with PowerShell version 7.3 or above" -ForegroundColor Red
-    exit
-}
 #Collect Parameters
 param(
     [Parameter(Mandatory = $true)]
@@ -55,8 +27,6 @@ param(
     [string]$localEnvJson
     
 )
-
-
 
 function import-AzureModule {
     param (
