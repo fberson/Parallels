@@ -1,7 +1,3 @@
-Write-host "Powershell version:"$PSVersionTable.PSVersion -ForegroundColor green
-
-
-
 #Collect Parameters
 param(
     [Parameter(Mandatory = $true)]
@@ -318,6 +314,8 @@ function add-AzureAppRegistrationPermissions {
     $AppReg | Update-AzADApplication -GroupMembershipClaim "SecurityGroup"
 }
 
+Write-Host "Starting the script to create the prerequisites for Parallels DaaS in Azure" -ForegroundColor Cyan
+Write-host "Powershell version:"$PSVersionTable.PSVersion -ForegroundColor green
 
 # Check and import the required Azure PowerShell module
 try {
