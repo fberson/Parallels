@@ -49,169 +49,6 @@ function import-AzureModule {
     }
 }
 
-function set-AzureTenant {
-    # Retrieve Azure tenants
-    $tenants = Get-AzTenant
-
-    # Display the list of tenants and prompt the user to select one
-    $i = 1
-    $selectedTenant = $null
-
-    Write-Host "Azure Tenants:" -ForegroundColor Yellow
-    foreach ($tenant in $tenants) {
-        Write-Host "$i. $($tenant.Name) - $($tenant.TenantId)"
-        $i++
-    }
-
-    $validSelection = $false
-    while (-not $validSelection) {
-        $selection = Read-Host ('>> Select a tenant by entering the corresponding number')
-
-        if ($selection -match '^\d+$') {
-            $selection = [int]$selection
-            if ($selection -ge 1 -and $selection -le $tenants.Count) {
-                $validSelection = $true
-            }
-        }
-
-        if (-not $validSelection) {
-            Write-Host "Invalid input. Please enter a valid number between 1 and $($tenants.Count)" -ForegroundColor Red
-        }
-    }
-
-    $selectedTenant = $tenants[$selection - 1]
-
-    # Store the selected tenant ID in tenantId variable
-    $tenantId = $selectedTenant.TenantId
-
-    Write-Host "Selected Tenant ID: $tenantId`n" -ForegroundColor Green
-
-    # Return the selected tenant ID
-    return $tenantId
-}
-
-function set-AzureSubscription {
-    # Check if the user is authenticated
-    if (-not (Get-AzContext)) {
-        Write-Host "Failed to authenticate against Azure. Please check your credentials and try again."
-        return
-    }
-
-    $warnings = @()
-
-    Write-Host "Getting subscriptions from selected tenant $selectedTenantId"
-    # Get the list of Azure subscriptions
-    $subscriptions = Get-AzSubscription -TenantId $selectedTenantId -WarningVariable warnings
-
-    if ($warnings.Count -gt 0) {
-        Write-Host "MFA authentication is required. Reconnecting to the selected tenant"
-        $currentUser = Connect-AzAccount -TenantId $selectedTenantId -AuthScope MicrosoftGraphEndpointResourceId
-        $subscriptions = Get-AzSubscription -TenantId $selectedTenantId
-    }
-
-    # Check if the user has access to any subscriptions
-    if ($subscriptions) {
-        # Display the list of subscriptions and prompt the user to select one
-        $i = 1
-        $selectedSubscription = $null
-
-        Write-Host "Azure Subscriptions:" -ForegroundColor Yellow
-        foreach ($subscription in $subscriptions) {
-            Write-Host "$i. $($subscription.Name) - $($subscription.Id)"
-            $i++
-        }
-
-        $validSelection = $false
-        while (-not $validSelection) {
-            $selection = Read-Host ('>> Select a subscription by entering the corresponding number')
-
-            if ($selection -match '^\d+$') {
-                $selection = [int]$selection
-                if ($selection -ge 1 -and $selection -le $subscriptions.Count) {
-                    $validSelection = $true
-                }
-            }
-
-            if (-not $validSelection) {
-                Write-Host "Invalid input. Please enter a valid number between 1 and $($subscriptions.Count)" -ForegroundColor Red
-            }
-        }
-
-        $selectedSubscription = $subscriptions[$selection - 1]
-
-        # Store the selected subscription ID in subscriptionId variable
-        $subscriptionId = $selectedSubscription.Id
-
-        Write-Host "Selected Subscription ID: $subscriptionId`n" -ForegroundColor Green
-
-        Set-AzContext -SubscriptionId $subscriptionId
-
-        # Return the selected subscription object
-        return $selectedSubscription
-    }
-    else {
-        Write-Host "You do not have access to any Azure subscriptions."
-    }
-}
-
-function set-AzureLocation {
-    $desiredLocations = @('westeurope')
-
-    # Retrieve Azure locations
-    $locations = @(Get-AzLocation | Where-Object { $_.Providers -contains "Microsoft.DesktopVirtualization" -and $desiredLocations -contains $_.Location } | Select-Object -ExpandProperty Location | Sort-Object)
-
-    # Display the list of locations and prompt the user to select one
-    $selectedLocation = $null
-
-    # Determine the number of columns for display
-    $columnCount = 3
-    $rowCount = [Math]::Ceiling($locations.Count / $columnCount)
-
-    # Display the list of locations in multiple columns
-    Write-Host "Azure Locations:" -ForegroundColor Yellow
-
-    for ($row = 0; $row -lt $rowCount; $row++) {
-        for ($col = 0; $col -lt $columnCount; $col++) {
-            $index = $row + ($col * $rowCount)
-
-            if ($index -lt $locations.Count) {
-                $location = $locations[$index]
-                $label = ($index + 1).ToString().PadRight(3)
-
-                Write-Host "$label. $location" -NoNewline
-
-                $padding = 20 - $location.Length
-                Write-Host (" " * $padding) -NoNewline
-            }
-        }
-
-        # Stop if the total count is reached
-        if ($index -eq $locations.Count - 1) {
-            break
-        }
-
-        Write-Host
-    }
-    Write-Host `n
-
-    $validSelection = $false
-    while (-not $validSelection) {
-        $selection = Read-Host ('>> Select the location of where you want to deploy the resources')
-        if ($selection -match '^\d+$') {
-            $selection = [int]$selection
-            if ($selection -ge 1 -and $selection -le $locations.Count) {
-                $validSelection = $true
-                $selectedLocation = $locations[$selection - 1]
-                Write-Host "Selected Location: $selectedLocation" -ForegroundColor Green
-                return $selectedLocation
-            }
-        }
-        if (-not $validSelection) {
-            Write-Host "Invalid input. Please enter location number between 1 and $($locations.Count)" -ForegroundColor Red
-        }
-    }
-}
-
 function create-CustomRole {
     param(
         [Parameter(Mandatory = $true)]
@@ -252,55 +89,6 @@ function add-AppRegistrationToCustomRole {
 }
 
 function new-AzureAppRegistration {
-    <#
-    $validAppName = $false
-    $invalidChars = @('<', '>', ';', '&', '%')
-
-    Write-Host `n"App registrations:" -ForegroundColor Yellow
-
-    while (-not $validAppName) {
-        $appName = Read-Host '>> Provide the App Registration name'
-
-        if (-not [string]::IsNullOrWhiteSpace($appName) -and $appName.Length -gt 0) {
-            if ($appName.Length -le 120) {
-                $containsInvalidChars = $false
-                foreach ($invalidChar in $invalidChars) {
-                    if ($appName.Contains($invalidChar)) {
-                        $containsInvalidChars = $true
-                        break
-                    }
-                }
-
-                if (-not $containsInvalidChars) {
-                    # Check if the app name already exists
-                    $existingAppName = Get-AzADApplication | Where-Object { $_.DisplayName -eq $appName }
-                    if ($existingAppName) {
-                        Write-Host "The provided App Registration name already exists. Please provide a different name." -ForegroundColor Red
-                    }
-                    else {
-                        $validAppName = $true
-                    }
-                }
-                else {
-                    Write-Host "The provided App Registration name contains invalid characters. Please avoid using <, >, ;, &, or %." -ForegroundColor Red
-                }
-            }
-            else {
-                Write-Host "The provided App Registration name exceeds the maximum allowed length of 120 characters." -ForegroundColor Red
-            }
-        }
-        else {
-            Write-Host "The App Registration name cannot be empty or have a length of 0." -ForegroundColor Red
-        }
-    }
-
-    $ADServicePrincipal = Get-AzADServicePrincipal -DisplayName $appName
-    if ($null -ne $ADServicePrincipal) {
-        Write-Host "AD Service Principal with name '$appName' already exists. Please choose a different name."
-        return
-    }
-        #>
-
     if (!($myApp = Get-AzADServicePrincipal -DisplayName $appName -ErrorAction SilentlyContinue)) {
         $myApp = New-AzADServicePrincipal -DisplayName $appName
     }
@@ -325,71 +113,10 @@ function new-AzureADAppClientSecret {
     # Remove the password credential based on the KeyId
     Remove-AzADAppCredential -ObjectId $appObjectId -KeyId $credentialKeyId
 
-
     $secretStartDate = Get-Date
     $secretEndDate = $secretStartDate.AddYears(1)
     $webApiSecret = New-AzADAppCredential -StartDate $secretStartDate -EndDate $secretEndDate -ApplicationId $applicationID -CustomKeyIdentifier ([System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("DaaS secret")))
     return $webApiSecret
-}
-
-function new-AzureResourceGroup {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$resourceGroupLocation
-    )
-
-    $validResourceGroupName = $false
-
-    while (-not $validResourceGroupName) {
-        $resourceGroupName = Read-Host '>> Provide the name:'
-
-        if (-not [string]::IsNullOrWhiteSpace($resourceGroupName)) {
-            if ($resourceGroupName -match '^[A-Za-z0-9_-]+$' -and $resourceGroupName.Length -le 90) {
-                # Check if the resource group already exists
-                $existingResourceGroup = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue
-
-                if ($existingResourceGroup) {
-                    $validInput = $false
-                    while (!$validInput) {
-                        $confirm = Read-Host "The resource group '$resourceGroupName' already exists. Do you want to use it? (Y/N)"
-                        if ($confirm -eq 'Y' -or $confirm -eq 'y') {
-                            $validInput = $true
-                            $validResourceGroupName = $true
-                        }
-                        elseif ($confirm -eq 'N' -or $confirm -eq 'n') {
-                            $validInput = $true
-                            $validResourceGroupName = $false
-                        }
-                        else {
-                            Write-Host "Invalid input. Please enter 'Y' or 'N'." -ForegroundColor red
-                        }
-                    }
-                }
-                else {
-                    $validResourceGroupName = $true
-                }
-            }
-            else {
-                Write-Host "The provided resource group name contains invalid characters, or is too long. Please use only alphanumeric characters, hyphens, underscores, and up to 90 characters." -ForegroundColor Red
-            }
-        }
-        else {
-            Write-Host "The resource group name cannot be empty." -ForegroundColor Red
-        }
-    }
-
-    # Check if the resource group already exists
-    $existingResourceGroup = Get-AzResourceGroup -Name $resourceGroupName -ErrorAction SilentlyContinue
-
-    if ($existingResourceGroup) {
-        # Return the existing resource group
-        return $existingResourceGroup
-    }
-    else {
-        # Create the resource group since it doesn't exist
-        $resourceGroup = New-AzResourceGroup -Name $resourceGroupName -Location $resourceGroupLocation -Force
-        return $resourceGroup
-    }
 }
 
 function new-AzureKeyVaultWithSecret {
@@ -609,6 +336,7 @@ Catch {
 
 # Set Tenant
 try {
+    Write-Host "Set Tenant"
     $selectedTenantId = $azureTenantID
 }
 Catch {
@@ -619,6 +347,7 @@ Catch {
 
 # Provide list of available Azure subscriptions and allow setting active subscription
 try {
+    Write-Host "Set Subscription"
     $selectedSubscriptionID = $azureSubscriptionID
 }
 Catch {
@@ -629,6 +358,7 @@ Catch {
 
 # Provide list of available Azure locations and allow setting active location
 try {
+    Write-Host "Set location"
     $selectedAzureLocation = $location
 }
 Catch {
@@ -639,6 +369,7 @@ Catch {
 
 # Register the required Azure resource providers
 try {
+    Write-Host "Register-AzResourceProvider Microsoft.Network and Microsoft.Compute"
     Register-AzResourceProvider -ProviderNamespace "Microsoft.Network"
     Register-AzResourceProvider -ProviderNamespace "Microsoft.Compute"
 }
@@ -650,6 +381,7 @@ Catch {
 
 # Create a custom role to allow adding and deleting role assinments
 try {
+    Write-Host "Create custom role Daas Role Assignment"
     create-CustomRole -SubscriptionId $selectedSubscriptionID -RoleName "Daas Role Assignment"
 }
 Catch {
@@ -658,34 +390,9 @@ Catch {
     #exit
 }
 
-<#
-# Prompt for the resource group name, create the Resource Group and add the app registration contributor permissions
-try {
-    Write-Host "Azure Resource Group for the Infrastructure:" -ForegroundColor Yellow
-    $rgInfra = new-AzureResourceGroup -resourceGroupLocation $selectedAzureLocation
-    Write-Host "Resource Group name: "$rgInfra.ResourceGroupName -ForegroundColor Green
-}
-Catch {
-    Write-Host "ERROR: trying to create the resource group and set contributor permissions"
-    Write-Host $_.Exception.Message
-    exit
-}
-
-# Prompt for the resource group name, create the Resource Group and add the app registration contributor permissions
-try {
-    Write-Host "Azure Resource Group for the Virtual Machines:" -ForegroundColor Yellow
-    $rgVms = new-AzureResourceGroup -resourceGroupLocation $selectedAzureLocation
-    Write-Host "Resource Group name: "$rgVms.ResourceGroupName -ForegroundColor Green
-}
-Catch {
-    Write-Host "ERROR: trying to create the resource group and set contributor permissions"
-    Write-Host $_.Exception.Message
-    exit
-}
-#>
-
 # Prompt for the app name and create the app registration
 try {
+    Write-Host "Create app registration"
     $app = new-AzureAppRegistration
     Write-Host "App registration name: "$app.DisplayName -ForegroundColor Green
 }
@@ -697,6 +404,7 @@ Catch {
 
 # Assign Contributor role to the app registration on Infrastructure RG
 try {
+    Write-Host "Assign Contributor role to the app registration on Infrastructure RG"
     New-AzRoleAssignment -ObjectId $app.Id -RoleDefinitionName "Contributor" -Scope $rgInfra.ResourceId | Out-Null
 }
 Catch {
@@ -707,6 +415,7 @@ Catch {
 
 # Assign Contributor role to the app registration on VMs RG
 try {
+    Write-Host "Assign Contributor role to the app registration on VMs RG"
     New-AzRoleAssignment -ObjectId $app.Id -RoleDefinitionName "Contributor" -Scope $rgVms.ResourceId | Out-Null
 }
 Catch {
@@ -717,6 +426,7 @@ Catch {
 
 # Set the required Graph API permissions on the created app registration
 try {
+    Write-Host "Set app registration Graph API permissions"
     add-AzureAppRegistrationPermissions -appName $app.DisplayName -localEnvJson $localEnvJson
 }
 Catch {
@@ -727,6 +437,7 @@ Catch {
 
 # Create a client secret on the app registration and capture the secret key
 try {
+    Write-Host "Create client secret on the app registration"
     $secret = new-AzureADAppClientSecret -TenantId $selectedTenantId -applicationID $app.AppId
 }
 Catch {
@@ -737,6 +448,7 @@ Catch {
 
 # Add DaaS Role Assignment Role permission on subscription to the app registration
 try {
+    Write-Host "Add DaaS Role Assignment Role permission on subscription to the app registration"
     add-AppRegistrationToCustomRole -objectId $app.Id -SubscriptionId $selectedSubscriptionID -RoleName "Daas Role Assignment"
 }
 Catch {
@@ -747,6 +459,7 @@ Catch {
 
 # Grant admin consent to an the app registration
 try {
+    Write-Host "Grant admin consent to an the app registration"
     set-AdminConsent -ApplicationId $app.AppId -TenantId $selectedTenantId
 }
 Catch {
@@ -757,6 +470,7 @@ Catch {
 
 # Add an Azure Keyvault and store the Client Secret in it
 try {
+    Write-Host "Add an Azure Keyvault and store the Client Secret in it"
     $selectedKeyVaultName = new-AzureKeyVaultWithSecret -ResourceGroupName $rgInfra.ResourceGroupName -Location $selectedAzureLocation -SecretValue $secret.SecretText -SecretName "daas-spn-client-secret" -SubsciptionID $selectedSubscriptionID
 }
 Catch {
