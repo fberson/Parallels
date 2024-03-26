@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.12
-    Date       : Jan 31 2024
+    Version    : v0.0.13
+    Date       : March 26 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
 #>
@@ -221,7 +221,7 @@ $RASMedia = New-Object net.webclient
 $RASMedia.Downloadfile($EvergreenURL, $Temploc)
 WriteLog "Dowloading most recent Parallels RAS Installer done"
 
-#Impersonate user with local admin permissions to install RAS and administrators to manage RAS
+#Impersonate user with admin permissions to install RAS and administrators to manage RAS
 WriteLog "Impersonating user"
 Add-LocalGroupMember -Group "Administrators" -Member $domainJoinUserName
 New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password $domainJoinPassword
