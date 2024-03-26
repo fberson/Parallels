@@ -5,7 +5,7 @@
     File Name  : RAS_Azure_MP_Primary_CB.ps1
     Author     : Freek Berson
     Version    : v0.0.13
-    Date       : March 26 2024
+    Date       : Jan 31 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
 #>
@@ -174,24 +174,23 @@ New-RASSession -Username $domainJoinUserName -Password $secdomainJoinPassword -S
 WriteLog "Add AD group as RAS Admins"
 New-RASAdminAccount $RasAdminsGroupAD
 
-#Add secondary Connection Brokers
-WriteLog "Add secondary Connection Brokers"
-for ($i = 2; $i -le $numberofCBs; $i++) {
-    $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
-    New-RASBroker -Server $connectionBroker -Takeover
-    Invoke-RASApply
-    Start-Sleep -Seconds 10
-}
-Invoke-RASApply
-
 #Add Secure Gateways
 WriteLog "Add secure gateways"
 for ($i = 1; $i -le $numberofSGs; $i++) {
     $secureGateway = $prefixSGName + "-" + $i + "." + $domainName
     New-RASGateway -Server $secureGateway
-    Invoke-RASApply
     Start-Sleep -Seconds 10
 }
+Invoke-RASApply
+
+#Add secondary Connection Brokers
+WriteLog "Add secondary Connection Brokers"
+for ($i = 2; $i -le $numberofCBs; $i++) {
+    $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
+    New-RASBroker -Server $connectionBroker -Takeover
+    Start-Sleep -Seconds 10
+}
+Invoke-RASApply
 
 WriteLog "Remove RAS PowerShell Session"
 Remove-RASSession
