@@ -49,3 +49,6 @@ Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\C
 # Add Parallels RAS install user to local administrators group
 WriteLog "Adding Parallels RAS install user to local administrators group"
 Add-LocalGroupMember -Group "Administrators" -Member $domainJoinUserName
+
+#Reboot the server to apply all changes
+shutdown /r /t 0
