@@ -4,7 +4,7 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Primary_CB.ps1
     Author     : Freek Berson
-    Version    : v0.0.12
+    Version    : v0.0.13
     Date       : Jan 31 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
@@ -178,7 +178,7 @@ New-RASAdminAccount $RasAdminsGroupAD
 WriteLog "Add secondary Connection Brokers"
 for ($i = 2; $i -le $numberofCBs; $i++) {
     $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
-    New-RASBroker -Server $connectionBroker
+    New-RASBroker -Server $connectionBroker -Takeover
     Invoke-RASApply
     Start-Sleep -Seconds 10
 }
