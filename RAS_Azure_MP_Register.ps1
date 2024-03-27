@@ -237,6 +237,19 @@ New-RASSession -Username $retreivedData.domainJoinUserName -Password $localAdmin
 invoke-RASApply
 Remove-RASSession
 
+#Only for testing purposes -> remove before GA!
+Pause
+
+#restart secundary RAS servers to complete installation
+for ($i = 2; $i -le $retreivedData.numberofCBs; $i++) {
+    $connectionBroker = $retreivedData.prefixCBName + "-" + $i + "." + $retreivedData.domainName
+    restart-computer -computername $connectionBroker -WsmanAuthentication Kerberos -force
+}
+for ($i = 1; $i -le $retreivedData.numberofSGs; $i++) {
+    $secureGateway = $retreivedData.prefixSGName + "-" + $i + "." + $retreivedData.domainName
+    restart-computer -computername $secureGateway -WsmanAuthentication Kerberos -force
+}
+
 Write-Host 'Registration of Parallels RAS is completed.' `n
 Read-Host "Press any key to open the Parallels RAS console..."
 
