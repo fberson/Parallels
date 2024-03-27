@@ -180,6 +180,7 @@ for ($i = 1; $i -le $numberofSGs; $i++) {
     $secureGateway = $prefixSGName + "-" + $i + "." + $domainName
     New-RASGateway -Server $secureGateway
     Start-Sleep -Seconds 10
+    restart-computer -computername $secureGateway -WsmanAuthentication Kerberos -force
 }
 Invoke-RASApply
 
@@ -189,6 +190,7 @@ for ($i = 2; $i -le $numberofCBs; $i++) {
     $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
     New-RASBroker -Server $connectionBroker -Takeover
     Start-Sleep -Seconds 10
+    restart-computer -computername $connectionBroker -WsmanAuthentication Kerberos -force
 }
 Invoke-RASApply
 
