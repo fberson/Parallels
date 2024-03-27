@@ -207,6 +207,11 @@ $data = @{
     primaryConnectionBroker = $primaryConnectionBroker
     appPublisherName = $appPublisherName
     appProductName = $appProductName
+    numberofCBs = $numberofCBs
+    numberofSGs = $numberofSGs
+    prefixCBName = $prefixCBName
+    prefixSGName = $prefixSGName
+    domainName = $domainName
 }
 
 # Convert the object to JSON
@@ -229,16 +234,6 @@ New-ImpersonateUser -Username $domainJoinUserName -Domain $domainName  -Password
 #Install RAS Console & PowerShell role
 WriteLog "Install Parallels RAS Console and Powershell role"
 Start-Process msiexec.exe -ArgumentList "/i C:\install\RASInstaller.msi ADDFWRULES=1 ADDLOCAL=F_Console,F_PowerShell /qn /norestart /log C:\install\RAS_Install.log" -Wait
-
-#restart secundary RAS servers to complete installation
-for ($i = 2; $i -le $numberofCBs; $i++) {
-    $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
-    restart-computer -computername $connectionBroker -WsmanAuthentication Kerberos -force
-}
-for ($i = 1; $i -le $numberofSGs; $i++) {
-    $secureGateway = $prefixSGName + "-" + $i + "." + $domainName
-    restart-computer -computername $secureGateway -WsmanAuthentication Kerberos -force
-}
 
 #Remove impersonation
 Remove-ImpersonateUser
