@@ -210,12 +210,13 @@ function New-AzureADAppClientSecret {
         [Parameter(Mandatory = $true)]
         [string]$applicationID
     )
-    Remove-AzureADApplicationPasswordCredential -ObjectId (Get-AzADApplication -ApplicationId '$applicationID').ObjectId -KeyId (Get-AzureADApplicationPasswordCredential -ObjectId (Get-AzureADApplication -Filter "AppId eq '$applicationID'").ObjectId | Where-Object CustomKeyIdentifier -EQ $null).KeyId
+    #Remove-AzADAppCredential -ObjectId ((Get-AzADAppCredential -ApplicationId $applicationID).ObjectId| Where-Object CustomKeyIdentifier -EQ $null).KeyId | Out-Null
     $secretStartDate = Get-Date
     $secretEndDate = $secretStartDate.AddYears(1)
     $webApiSecret = New-AzADAppCredential -StartDate $secretStartDate -EndDate $secretEndDate -ApplicationId $applicationID -CustomKeyIdentifier ([System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("Parallels RAS secret")))
     return $webApiSecret    
 }
+
 
 function Set-azureResourceGroupPermissions {
     param(
@@ -450,7 +451,7 @@ if ($retreivedData.providerSelection -ne "noProvider") {
 
     # Store client secret in Azure KeyVault
     try {
-        $selectedKeyVaultName = Set-azureKeyVaultSecret -keyVaultName $retreivedData.keyVaultName -SecretValue $secret -SecretName $retreivedData.providerAppRegistrationName
+        $selectedKeyVaultName = Set-azureKeyVaultSecret -keyVaultName $retreivedData.keyVaultName -SecretValue $secret.SecretText -SecretName $retreivedData.providerAppRegistrationName
     }
     Catch {
         Write-Host "ERROR: trying to create a new Azure KeyVault and adding the client secret"
