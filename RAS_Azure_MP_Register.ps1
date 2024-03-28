@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Register.ps1
     Author     : Freek Berson
-    Version    : v0.0.13
-    Date       : March 26 2024
+    Version    : v0.0.14
+    Date       : March 28 2024
 .EXAMPLE
     .\RAS_Azure_MP_Register.ps1
 #>
@@ -132,9 +132,152 @@ function get-keyVaultSecret {
     return Get-AzKeyVaultSecret -VaultName $keyVaultName -Name $secretName
 }
 
-# BEGIN SCRIPT
 
-Write-Host `n'*** This script will register Parallels RAS and import a license key ***' -ForegroundColor Green
+function CreateVMReaderRole {
+    param(        
+        [Parameter(Mandatory = $true)]
+        [string]$SubscriptionId
+    )
+    #Create custom role definition
+    $existingRoleDefinition = Get-AzRoleDefinition -Name "VM Reader Parallels RAS" -ErrorAction SilentlyContinue -WarningAction SilentlyContinue
+    if ($null -eq $existingRoleDefinition) {
+        $role = Get-AzRoleDefinition "Virtual Machine Contributor"
+        $role.Id = $null
+        $role.Name = "VM Reader Parallels RAS"
+        $role.Description = "Provides read access to Microsoft.Compute"
+        $role.Actions.Clear()
+        $role.Actions.Add("Microsoft.Compute/*/read")
+        $role.AssignableScopes.clear()
+        $role.AssignableScopes.Add("/subscriptions/$SubscriptionId")
+        New-AzRoleDefinition -Role $role | Out-Null
+    }
+}
+
+
+function New-AzureAppRegistration {
+    param(        
+        [Parameter(Mandatory = $true)]
+        [string]$appName
+    )
+ 
+    # Check if the AzADServicePrincipal already exists
+    $ADServicePrincipal = Get-AzADServicePrincipal -DisplayName $appName
+    if ($null -ne $ADServicePrincipal) {
+        Write-Host "AD Service Principal with name '$appName' already exists. Please choose a different name."
+        return
+    }
+
+    if (!($myApp = Get-AzADServicePrincipal -DisplayName $appName -ErrorAction SilentlyContinue)) {
+        $myApp = New-AzADServicePrincipal -DisplayName $appName
+    }
+    return (Get-AzADServicePrincipal -DisplayName $appName)
+}
+
+function Set-AzureVNetResourcePermissions {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$vnetId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$ObjectId
+    )
+    
+    #Add contributor permissions to the vnet for the app registration 
+    $roleAssignment = New-AzRoleAssignment -ObjectId $ObjectId -RoleDefinitionName "Contributor" -Scope $vnetId | Out-Null
+        
+    # Return the selected vnet
+    return $roleAssignment
+
+}
+
+function Add-AzureAppRegistrationPermissions {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$appName
+    )
+    # Get the app registration
+    $applicationID = (Get-AzADApplication -DisplayName $appName).AppId
+
+    #Add Group.Read.All permission
+    Add-AzADAppPermission -ApplicationId $applicationID -ApiId "00000003-0000-0000-c000-000000000000" -PermissionId 5b567255-7703-4780-807c-7be8301ae99b -Type Role
+    Add-AzADAppPermission -ApplicationId $applicationID -ApiId "00000003-0000-0000-c000-000000000000" -PermissionId df021288-bdef-4463-88db-98f22de89214 -Type Role
+}
+function New-AzureADAppClientSecret {
+    param(     
+        [Parameter(Mandatory = $true)]
+        [string]$TenantId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$applicationID
+    )
+    Remove-AzureADApplicationPasswordCredential -ObjectId (Get-AzADApplication -ApplicationId '$applicationID').ObjectId -KeyId (Get-AzureADApplicationPasswordCredential -ObjectId (Get-AzureADApplication -Filter "AppId eq '$applicationID'").ObjectId | Where-Object CustomKeyIdentifier -EQ $null).KeyId
+    $secretStartDate = Get-Date
+    $secretEndDate = $secretStartDate.AddYears(1)
+    $webApiSecret = New-AzADAppCredential -StartDate $secretStartDate -EndDate $secretEndDate -ApplicationId $applicationID -CustomKeyIdentifier ([System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes("Parallels RAS secret")))
+    return $webApiSecret    
+}
+
+function Set-azureResourceGroupPermissions {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$objectId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$resourceGroupID
+    )
+
+    # Assign the contributor role to the service principal on the resource group
+    New-AzRoleAssignment -ObjectId $objectId -RoleDefinitionName "Contributor" -Scope $resourceGroupID | Out-Null
+}
+
+function Add-UserAccessAdministrationRole {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$objectId,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$SubscriptionId
+    )
+
+    # Assign User Access Administrator role to the app registration at the subscription level
+    New-AzRoleAssignment -ObjectId $objectId -RoleDefinitionName "User Access Administrator" -Scope "/subscriptions/$SubscriptionId" | Out-Null
+}
+
+function Add-VMReaderRole {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$objectId,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$SubscriptionId
+    )
+    # Assign VM Reader role to the app registration at the subscription level
+    New-AzRoleAssignment -ObjectId $objectId -RoleDefinitionName "VM Reader Parallels RAS" -Scope "/subscriptions/$SubscriptionId" | Out-Null
+}
+
+function Set-azureKeyVaultSecret {
+    [CmdletBinding()]
+    param (
+               
+        [Parameter(Mandatory = $true)]
+        [string]$keyVaultName,
+    
+        [Parameter(Mandatory = $true)]
+        [string]$SecretValue,
+        
+        [Parameter(Mandatory = $true)]
+        [string]$SecretName
+        
+    )
+
+    # Add the secret to the Key Vault
+    $secret = ConvertTo-SecureString -String $SecretValue -AsPlainText -Force
+    Set-AzKeyVaultSecret -VaultName $keyVaultName  -Name $SecretName -SecretValue $secret | Out-Null
+
+    return $KeyVaultName
+}
+
+# BEGIN SCRIPT
 
 # Disable IE ESC for Administrators and users
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}' -Name 'IsInstalled' -Value 0
@@ -168,7 +311,6 @@ Catch {
 
 # Check and import the required Azure PowerShell module
 try {
-    #import-AzureModule "Az.Accounts"
     import-AzureModule "Az.Resources"
     import-AzureModule "Az.KeyVault"
 }
@@ -191,7 +333,7 @@ Catch {
 # Connect to Azure and Azure AD
 try {
     Write-Host 'Please authenticate towards Azure to complete the setup.' `n
-    $currentUser = Connect-AzAccount -Tenant $retreivedData.tenantID
+    $currentUser = Connect-AzAccount -Tenant $retreivedData.tenantID -AuthScope MicrosoftGraphEndpointResourceId
 }
 Catch {
     Write-Host "ERROR: trying to run Connect-AzAccount and Connect-AzureAD"
@@ -221,24 +363,125 @@ Catch {
     exit
 }
 
-#Contact MA to get Parallels RAS License key - REQUIRES UPDATES
-New-Item -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels' -Name 'ApplicationServer' | Out-Null
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'deployedByAzureMarketplace' -Value 1 -force | Out-Null
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureMarketplaceOfferId' -PropertyType MultiString -Value $resourceUsageId -force | Out-Null
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'customerUsageAttributionId' -PropertyType MultiString -Value $retreivedData.customerUsageAttributionID -force | Out-Null
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'managedAppResourceUsageId' -PropertyType MultiString -Value $resourceUsageId[1] -force | Out-Null
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azuresubscriptionId' -PropertyType MultiString -Value $retreivedData.SubscriptionId -force | Out-Null
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'azureTenantId' -PropertyType MultiString -Value $retreivedData.tenantID -force | Out-Null
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'appPublisherName' -PropertyType MultiString -Value $retreivedData.appPublisherName -force | Out-Null
-New-ItemProperty -Path 'HKLM:\SOFTWARE\Wow6432Node\Parallels\ApplicationServer' -Name 'appProductName' -PropertyType MultiString -Value $retreivedData.appProductName -force | Out-Null
+
+#Create Azure app registration if specified
+if ($retreivedData.providerSelection -ne "noProvider") {
+
+    # Create a custom role to allow reading all compute resource
+    try {
+        CreateVMReaderRole -SubscriptionId $retreivedData.SubscriptionId
+    }
+    Catch {
+        Write-Host "ERROR: creating custom role to allow reding VM resources"
+        Write-Host $_.Exception.Message
+        exit
+    }
+
+    # Create the app registration
+    try {
+        $app = New-AzureAppRegistration -appName $retreivedData.providerAppRegistrationName
+        Write-Host "App registration name: "$app.DisplayName -ForegroundColor Green
+    }
+    Catch {
+        Write-Host "ERROR: trying to create the App Registration"
+        Write-Host $_.Exception.Message
+        exit
+    }
+
+    # Set permissions on the virtual network
+    try {
+        Set-azureVNetResourcePermissions -vnetId $retreivedData.vnetId -objectId $app.Id
+    }
+    Catch {
+        Write-Host "ERROR: trying to configure contributor permissons on vnet"
+        Write-Host $_.Exception.Message
+        exit
+    }
+
+    # Set the required Graph API permissions on the created app registration
+    try {
+        Add-AzureAppRegistrationPermissions -appName $app.DisplayName
+    }
+    Catch {
+        Write-Host "ERROR: trying to set app registration Graph API permissions"
+        Write-Host $_.Exception.Message
+        exit
+    }
+
+    # Create a client secret on the app registration and capture the secret key
+    try {
+        $secret = New-AzureADAppClientSecret -TenantId $retreivedData.tenantID -applicationID $app.AppId
+    }
+    Catch {
+        Write-Host "ERROR: trying to create the App Registration client secret"
+        Write-Host $_.Exception.Message
+        exit
+    }
+
+    # Add app registration contributor permissions on resource group
+    try {
+        $rg = set-azureResourceGroupPermissions -resourceGroupID $retreivedData.mgrID  -objectId $app.Id
+    }
+    Catch {
+        Write-Host "ERROR: trying to create the resource group and set contributor permissions"
+        Write-Host $_.Exception.Message
+        exit
+    }
+
+    # Add User Access Administratrion permission on subscription to the app registration
+    try {
+        Add-UserAccessAdministrationRole -objectId $app.Id -SubscriptionId $retreivedData.SubscriptionId
+    }
+    Catch {
+        Write-Host "ERROR: trying to set User Access Administration role"
+        WWrite-Host $_.Exception.Message
+        exit
+    }
+
+    # Add VM Reader permission on subscription to the app registration
+    try {
+        Add-VMReaderRole -objectId $app.Id -SubscriptionId $retreivedData.SubscriptionId
+    }
+    Catch {
+        Write-Host "ERROR: trying to set VM Reader role"
+        WWrite-Host $_.Exception.Message
+        exit
+    }
+
+    # Store client secret in Azure KeyVault
+    try {
+        $selectedKeyVaultName = Set-azureKeyVaultSecret -keyVaultName $retreivedData.keyVaultName -SecretValue $secret -SecretName $retreivedData.providerAppRegistrationName
+    }
+    Catch {
+        Write-Host "ERROR: trying to create a new Azure KeyVault and adding the client secret"
+        Write-Host $_.Exception.Message
+        exit
+    }
+}
 
 # Register Parallels RAS with the license key - REQUIRES UPDATES
 New-RASSession -Username $retreivedData.domainJoinUserName -Password $localAdminPasswordSecure -Server $retreivedData.primaryConnectionBroker
+
+<#
+#Set Azure Marketplace related settings in RAS db
+Set-RASAzureMarketplaceDeploymentSettings -SubscriptionID $retreivedData.SubscriptionId -TenantID $retreivedData.tenantID 
+-CustomerUsageAttributionID $retreivedData.customerUsageAttributionID -ManagedAppResourceUsageID $resourceUsageId[1]
+
+# Invoke-apply
+invoke-RASApply
+
+#Create Azure or AVD in RAS if specified
+if ($retreivedData.providerSelection -eq "AVDProvider") {
+    New-RASProvider -AVD -Name $retreivedData.providerName -AppRegistrationName $retreivedData.providerAppRegistrationName
+}
+if ($retreivedData.providerSelection -eq "AzureProvider") {
+    New-RASProvider $retreivedData.providerName -Azure -Version Azure -TenantID $retreivedData.tenantID -SubscriptionID $retreivedData.SubscriptionId -ProviderUsername $retreivedData.providerAppRegistrationName -ProviderPassword $pass -NoInstallproviderAppRegistrationName
+}
+#>
+
+# Invoke-apply and remove session
 invoke-RASApply
 Remove-RASSession
-
-#Only for testing purposes -> remove before GA!
-Pause
 
 #restart secundary RAS servers to complete installation
 for ($i = 2; $i -le $retreivedData.numberofCBs; $i++) {
