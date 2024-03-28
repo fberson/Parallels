@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.13
-    Date       : March 26 2024
+    Version    : v0.0.14
+    Date       : March 28 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
 #>
@@ -55,9 +55,24 @@ param(
     [string]$appProductName,
 
     [Parameter(Mandatory = $true)]
-    [string]$customerUsageAttributionID
-)
+    [string]$customerUsageAttributionID,
 
+    [Parameter(Mandatory = $true)]
+    [string]$providerSelection,
+
+    [Parameter(Mandatory = $true)]
+    [string]$providerName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$providerAppRegistrationName,
+
+    [Parameter(Mandatory = $true)]
+    [string]$vnetId,
+
+    [Parameter(Mandatory = $true)]
+    [string]$mgrID
+    
+)
 
 function New-ImpersonateUser {
 
@@ -212,6 +227,11 @@ $data = @{
     prefixCBName = $prefixCBName
     prefixSGName = $prefixSGName
     domainName = $domainName
+    providerSelection = $providerSelection
+    providerName = $providerName
+    providerAppRegistrationName = $providerAppRegistrationName
+    vnetId = $vnetId
+    mgrID = $mgrID
 }
 
 # Convert the object to JSON
