@@ -234,26 +234,26 @@ function Set-azureResourceGroupPermissions {
 function Add-UserAccessAdministrationRole {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$objectId,
+        [string]$appId,
         
         [Parameter(Mandatory = $true)]
         [string]$SubscriptionId
     )
 
     # Assign User Access Administrator role to the app registration at the subscription level
-    New-AzRoleAssignment -ObjectId $objectId -RoleDefinitionName "User Access Administrator" -Scope "/subscriptions/$SubscriptionId" | Out-Null
+    New-AzRoleAssignment -ObjectId $appId -RoleDefinitionName "User Access Administrator" -Scope "/subscriptions/$SubscriptionId" | Out-Null
 }
 
 function Add-VMReaderRole {
     param(
         [Parameter(Mandatory = $true)]
-        [string]$objectId,
+        [string]$Objectid,
         
         [Parameter(Mandatory = $true)]
         [string]$SubscriptionId
     )
     # Assign VM Reader role to the app registration at the subscription level
-    New-AzRoleAssignment -ObjectId $objectId -RoleDefinitionName "VM Reader Parallels RAS" -Scope "/subscriptions/$SubscriptionId" | Out-Null
+    New-AzRoleAssignment -Objectid $Objectid -RoleDefinitionName "VM Reader Parallels RAS" -Scope "/subscriptions/$SubscriptionId" | Out-Null
 }
 
 function Set-azureKeyVaultSecret {
@@ -276,6 +276,32 @@ function Set-azureKeyVaultSecret {
     Set-AzKeyVaultSecret -VaultName $keyVaultName  -Name $SecretName -SecretValue $secret | Out-Null
 
     return $KeyVaultName
+}
+
+function set-AdminConsent {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]$ApplicationId,
+
+        [Parameter(Mandatory)]
+        [string]$TenantId
+    )
+
+    $Context = Get-AzContext
+
+    $token = [Microsoft.Azure.Commands.Common.Authentication.AzureSession]::Instance.AuthenticationFactory.Authenticate(
+        $context.Account, $context.Environment, $TenantId, $null, "Never", $null, "74658136-14ec-4630-ad9b-26e160ff0fc6")
+
+    $headers = @{
+        'Authorization'          = 'Bearer ' + $token.AccessToken
+        'X-Requested-With'       = 'XMLHttpRequest'
+        'x-ms-client-request-id' = [guid]::NewGuid()
+        'x-ms-correlation-id'    = [guid]::NewGuid()
+    }
+
+    $url = "https://main.iam.ad.ext.azure.com/api/RegisteredApplications/$ApplicationId/Consent?onBehalfOfAll=true"
+    Invoke-RestMethod -Uri $url -Headers $headers -Method POST -ErrorAction Stop
 }
 
 # BEGIN SCRIPT
@@ -373,7 +399,7 @@ if ($retreivedData.providerSelection -ne "noProvider") {
         CreateVMReaderRole -SubscriptionId $retreivedData.SubscriptionId
     }
     Catch {
-        Write-Host "ERROR: creating custom role to allow reding VM resources"
+        Write-Host "ERROR: creating custom role to allow reading VM resources"
         Write-Host $_.Exception.Message
         exit
     }
@@ -381,7 +407,6 @@ if ($retreivedData.providerSelection -ne "noProvider") {
     # Create the app registration
     try {
         $app = New-AzureAppRegistration -appName $retreivedData.providerAppRegistrationName
-        Write-Host "App registration name: "$app.DisplayName -ForegroundColor Green
     }
     Catch {
         Write-Host "ERROR: trying to create the App Registration"
@@ -421,7 +446,7 @@ if ($retreivedData.providerSelection -ne "noProvider") {
 
     # Add app registration contributor permissions on resource group
     try {
-        $rg = set-azureResourceGroupPermissions -resourceGroupID $retreivedData.mgrID  -objectId $app.Id
+        $rg = set-azureResourceGroupPermissions -resourceGroupID $retreivedData.mgrID -objectId $app.Id
     }
     Catch {
         Write-Host "ERROR: trying to create the resource group and set contributor permissions"
@@ -431,21 +456,21 @@ if ($retreivedData.providerSelection -ne "noProvider") {
 
     # Add User Access Administratrion permission on subscription to the app registration
     try {
-        Add-UserAccessAdministrationRole -objectId $app.Id -SubscriptionId $retreivedData.SubscriptionId
+        Add-UserAccessAdministrationRole -appId $app.Id -SubscriptionId $retreivedData.SubscriptionId
     }
     Catch {
         Write-Host "ERROR: trying to set User Access Administration role"
-        WWrite-Host $_.Exception.Message
+        Write-Host $_.Exception.Message
         exit
     }
 
     # Add VM Reader permission on subscription to the app registration
     try {
-        Add-VMReaderRole -objectId $app.Id -SubscriptionId $retreivedData.SubscriptionId
+        Add-VMReaderRole -Objectid $app.Id -SubscriptionId $retreivedData.SubscriptionId
     }
     Catch {
         Write-Host "ERROR: trying to set VM Reader role"
-        WWrite-Host $_.Exception.Message
+        Write-Host $_.Exception.Message
         exit
     }
 
@@ -458,6 +483,20 @@ if ($retreivedData.providerSelection -ne "noProvider") {
         Write-Host $_.Exception.Message
         exit
     }
+
+    #Wait to make sure the API permisissons are configgured before doing a consent
+    sleep 60
+
+    # Grant admin consent to an the app registration
+    try {
+        set-AdminConsent -ApplicationId $app.AppId -TenantId $retreivedData.tenantID
+    }
+    Catch {
+        Write-Host "ERROR: trying to grant admin consent to an the app registration"
+        Write-Host $_.Exception.Message
+        exit
+    }
+
 }
 
 # Register Parallels RAS with the license key - REQUIRES UPDATES
@@ -467,18 +506,25 @@ New-RASSession -Username $retreivedData.domainJoinUserName -Password $localAdmin
 #Set Azure Marketplace related settings in RAS db
 Set-RASAzureMarketplaceDeploymentSettings -SubscriptionID $retreivedData.SubscriptionId -TenantID $retreivedData.tenantID 
 -CustomerUsageAttributionID $retreivedData.customerUsageAttributionID -ManagedAppResourceUsageID $resourceUsageId[1]
+#>
 
 # Invoke-apply
 invoke-RASApply
 
-#Create Azure or AVD in RAS if specified
+Create Azure or AVD in RAS if specified
 if ($retreivedData.providerSelection -eq "AVDProvider") {
-    New-RASProvider -AVD -Name $retreivedData.providerName -AppRegistrationName $retreivedData.providerAppRegistrationName
+    $appPassword = ConvertTo-SecureString -String $secret.SecretText -AsPlainText -Force
+    Set-RASAVDSettings -Enabled $true
+    invoke-RASApply
+    New-RASProvider $retreivedData.providerName -AVDVersion AVD -AVD -TenantID $retreivedData.tenantID -SubscriptionID $retreivedData.SubscriptionId -ProviderUsername $app.AppId -ProviderPassword $appPassword -NoInstall
+    invoke-RASApply
 }
 if ($retreivedData.providerSelection -eq "AzureProvider") {
-    New-RASProvider $retreivedData.providerName -Azure -Version Azure -TenantID $retreivedData.tenantID -SubscriptionID $retreivedData.SubscriptionId -ProviderUsername $retreivedData.providerAppRegistrationName -ProviderPassword $pass -NoInstallproviderAppRegistrationName
+    $appPassword = ConvertTo-SecureString -String $secret.SecretText -AsPlainText -Force
+    New-RASProvider $retreivedData.providerName -AzureVersion Azure -Azure -TenantID $retreivedData.tenantID -SubscriptionID $retreivedData.SubscriptionId -ProviderUsername $app.AppId -ProviderPassword $appPassword -NoInstall
+    invoke-RASApply
 }
-#>
+
 
 # Invoke-apply and remove session
 invoke-RASApply
@@ -495,6 +541,6 @@ for ($i = 1; $i -le $retreivedData.numberofSGs; $i++) {
 }
 
 Write-Host 'Registration of Parallels RAS is completed.' `n
-Read-Host "Press any key to open the Parallels RAS console..."
+Read-Host -Prompt "Press any key to open the Parallels RAS console..." | Out-Null
 
 Start-Process -FilePath "C:\Program Files (x86)\Parallels\ApplicationServer\2XConsole.exe"
