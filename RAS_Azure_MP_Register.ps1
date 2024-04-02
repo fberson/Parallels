@@ -511,7 +511,7 @@ Set-RASAzureMarketplaceDeploymentSettings -SubscriptionID $retreivedData.Subscri
 # Invoke-apply
 invoke-RASApply
 
-Create Azure or AVD in RAS if specified
+#Create Azure or AVD in RAS if specified
 if ($retreivedData.providerSelection -eq "AVDProvider") {
     $appPassword = ConvertTo-SecureString -String $secret.SecretText -AsPlainText -Force
     Set-RASAVDSettings -Enabled $true
