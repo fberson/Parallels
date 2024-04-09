@@ -113,9 +113,45 @@ function get-resourceUsageId {
         [string]$appProductName
 
     )
-    Set-AzContext -SubscriptionId $SubscriptionId
-    $managedAppName = (get-azresource -ResourceType 'Microsoft.Solutions/applications' | Where-Object { ($_.Plan.Publisher -match $appPublisherName) -and ($_.Plan.product -match $appProductName) -and ($_.kind -match 'MarketPlace') }).name
-    $managedAppResourceGroupName = (get-azresource -ResourceType 'Microsoft.Solutions/applications' | Where-Object { ($_.Plan.Publisher -match $appPublisherName) -and ($_.Plan.product -match $appProductName) -and ($_.kind -match 'MarketPlace') }).ResourceGroupName
+    Set-AzContext -SubscriptionId $SubscriptionId    
+    $filteredResources = Get-AzResource -ResourceType 'Microsoft.Solutions/applications' | 
+    Where-Object { 
+            ($_.Plan.Publisher -match $appPublisherName) -and 
+            ($_.Plan.Product -match $appProductName) -and 
+            ($_.Kind -match 'MarketPlace') 
+    }
+
+    if ($filteredResources.Count -eq 0) {
+        Write-Host "No matching resources found."
+    }
+    elseif ($filteredResources.Count -eq 1) {
+        $managedAppName = $filteredResources[0].Name
+        Write-Host "Only one matching resource found: $managedAppName"
+    }
+    else {
+        Write-Host "Choose a resource by entering its corresponding number:"
+
+        # Display numbered list of resource names
+        for ($i = 0; $i -lt $filteredResources.Count; $i++) {
+            Write-Host "$($i + 1). $($filteredResources[$i].Name)"
+        }
+
+        $validChoice = $false
+        while (-not $validChoice) {
+            $choice = Read-Host "Enter the number of the resource you want to select"
+            $choice = [int]$choice
+
+            if ($choice -gt 0 -and $choice -le $filteredResources.Count) {
+                $managedAppName = $filteredResources[$choice - 1].Name
+                Write-Host "You have selected: $managedAppName"
+                $validChoice = $true
+            }
+            else {
+                Write-Host "Invalid choice. Please enter a valid number."
+            }
+        }
+    }
+    $managedAppResourceGroupName = (get-azresource -ResourceType 'Microsoft.Solutions/applications' -Name $managedAppName).ResourceGroupName
     $resource = (Get-AzResource -ResourceType "Microsoft.Solutions/applications" -ResourceGroupName $managedAppResourceGroupName -Name $managedAppName)
     $resourceUsageId = $resource.Properties.billingDetails.resourceUsageId
     return $resourceUsageId
@@ -516,12 +552,12 @@ if ($retreivedData.providerSelection -eq "AVDProvider") {
     $appPassword = ConvertTo-SecureString -String $secret.SecretText -AsPlainText -Force
     Set-RASAVDSettings -Enabled $true
     invoke-RASApply
-    New-RASProvider $retreivedData.providerName -AVDVersion AVD -AVD -TenantID $retreivedData.tenantID -SubscriptionID $retreivedData.SubscriptionId -ProviderUsername $app.AppId -ProviderPassword $appPassword -NoInstall
+    New-RASProvider $retreivedData.providerName -AVDVersion AVD -AVD -TenantID $retreivedData.tenantID -SubscriptionID $retreivedData.SubscriptionId -ProviderUsername $app.AppId -ProviderPassword $appPassword -NoInstall | Out-Null
     invoke-RASApply
 }
 if ($retreivedData.providerSelection -eq "AzureProvider") {
     $appPassword = ConvertTo-SecureString -String $secret.SecretText -AsPlainText -Force
-    New-RASProvider $retreivedData.providerName -AzureVersion Azure -Azure -TenantID $retreivedData.tenantID -SubscriptionID $retreivedData.SubscriptionId -ProviderUsername $app.AppId -ProviderPassword $appPassword -NoInstall
+    New-RASProvider $retreivedData.providerName -AzureVersion Azure -Azure -TenantID $retreivedData.tenantID -SubscriptionID $retreivedData.SubscriptionId -ProviderUsername $app.AppId -ProviderPassword $appPassword -NoInstall | Out-Null
     invoke-RASApply
 }
 
