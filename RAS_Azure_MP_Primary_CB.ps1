@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Primary_CB.ps1
     Author     : Freek Berson
-    Version    : v0.0.13
-    Date       : Jan 31 2024
+    Version    : v0.0.15
+    Date       : March 28 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
 #>
@@ -189,6 +189,7 @@ for ($i = 2; $i -le $numberofCBs; $i++) {
     $connectionBroker = $prefixCBName + "-" + $i + "." + $domainName
     New-RASBroker -Server $connectionBroker -Takeover
     Start-Sleep -Seconds 10
+    if ($i -eq 4) { Set-RASBroker -Server $connectionBroker -enabled $false}
 }
 Invoke-RASApply
 
