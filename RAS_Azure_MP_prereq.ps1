@@ -74,7 +74,7 @@ Catch {
 
 # Add Parallels RAS install user to local administrators group
 try {
-    Add-LocalInstallAccountGroupMember -adminUserUPN 'domainjoin@prasmpdemo.com'
+    Add-LocalInstallAccountGroupMember -adminUserUPN $domainJoinUserName
 }
 Catch {
     Write-Host "ERROR: Adding Parallels RAS install user to local administrators group"
