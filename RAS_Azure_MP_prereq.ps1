@@ -34,9 +34,12 @@ function Enable-remoteInstallRASAgent {
     Set-ItemProperty -Path REGISTRY::HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Advanced\Folder\SharingWizardOn -Name CheckedValue -Value 0
 }
 
-function Add-LocalGroupMember {
+function Add-LocalInstallAccountGroupMember {
+    param (
+        [string]$adminUserUPN
+    )
     WriteLog "Adding Parallels RAS install user to local administrators group"
-    Add-LocalGroupMember -Group "Administrators" -Member $domainJoinUserName
+    Add-LocalGroupMember -Group "Administrators" -Member $adminUserUPN
 }
 
 #Set variables
@@ -71,7 +74,7 @@ Catch {
 
 # Add Parallels RAS install user to local administrators group
 try {
-    Add-LocalGroupMember
+    Add-LocalInstallAccountGroupMember -adminUserUPN 'domainjoin@prasmpdemo.com'
 }
 Catch {
     Write-Host "ERROR: Adding Parallels RAS install user to local administrators group"
@@ -80,4 +83,4 @@ Catch {
 }
 
 #Reboot the server to apply all changes
-shutdown /r /t 0
+#shutdown /r /t 0
