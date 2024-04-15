@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_prereq.ps1
     Author     : Freek Berson
-    Version    : v0.0.15
-    Date       : March 28 2024
+    Version    : v0.0.16
+    Date       : April 14 2024
 .EXAMPLE
     .\RAS_Azure_MP_prereq.ps1
 #>
