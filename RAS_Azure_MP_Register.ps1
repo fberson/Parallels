@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Register.ps1
     Author     : Freek Berson
-    Version    : v0.0.15
-    Date       : March 28 2024
+    Version    : v0.0.16
+    Date       : April 14 2024
 .EXAMPLE
     .\RAS_Azure_MP_Register.ps1
 #>
@@ -429,6 +429,8 @@ Catch {
 
 #Create Azure app registration if specified
 if ($retreivedData.providerSelection -ne "noProvider") {
+
+    Write-Host 'Performing post deployment configuration in Parallels RAS, please wait...' `n
 
     # Create a custom role to allow reading all compute resource
     try {
