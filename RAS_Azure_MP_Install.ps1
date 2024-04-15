@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.15
-    Date       : March 28 2024
+    Version    : v0.0.16
+    Date       : April 14 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
 #>
@@ -70,8 +70,10 @@ param(
     [string]$vnetId,
 
     [Parameter(Mandatory = $true)]
-    [string]$mgrID
-    
+    [string]$mgrID,
+
+    [Parameter(Mandatory = $true)]
+    [string]$downloadURLRAS    
 )
 
 function New-ImpersonateUser {
@@ -181,7 +183,6 @@ function Set-RunOnceScriptForAllUsers {
 }
 
 #Set variables
-$EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi'
 $installPath = "C:\install"
 
@@ -243,7 +244,7 @@ $json | Out-File -FilePath "C:\install\output.json"
 #Download the latest RAS installer 
 WriteLog "Dowloading most recent Parallels RAS Installer"
 $RASMedia = New-Object net.webclient
-$RASMedia.Downloadfile($EvergreenURL, $Temploc)
+$RASMedia.Downloadfile($downloadURLRAS, $Temploc)
 WriteLog "Dowloading most recent Parallels RAS Installer done"
 
 #Impersonate user with admin permissions to install RAS and administrators to manage RAS
