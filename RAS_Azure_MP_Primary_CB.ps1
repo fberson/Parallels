@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Primary_CB.ps1
     Author     : Freek Berson
-    Version    : v0.0.15
-    Date       : March 28 2024
+    Version    : v0.0.16
+    Date       : April 14 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
 #>
@@ -34,12 +34,14 @@ param(
     [string]$prefixSGName,
 
     [Parameter(Mandatory = $true)]
-    [string]$RasAdminsGroupAD 
+    [string]$RasAdminsGroupAD,
+
+    [Parameter(Mandatory = $true)]
+    [string]$downloadURLRAS
     
 )
 
 #Set variables
-$EvergreenURL = 'https://download.parallels.com/ras/latest/RASInstaller.msi'
 $Temploc = 'C:\install\RASInstaller.msi'
 $installPath = "C:\install"
 $secdomainJoinPassword = ConvertTo-SecureString $domainJoinPassword -AsPlainText -Force
@@ -149,7 +151,7 @@ New-NetFirewallRule -DisplayName "Parallels RAS Administration (TCP)" -Direction
 #Download the latest RAS installer
 WriteLog "Dowloading most recent Parallels RAS Installer"
 $RASMedia = New-Object net.webclient
-$RASMedia.Downloadfile($EvergreenURL, $Temploc)
+$RASMedia.Downloadfile($downloadURLRAS, $Temploc)
 
 #Impersonate user with local admin permissins to install RAS
 WriteLog "Impersonating user"
