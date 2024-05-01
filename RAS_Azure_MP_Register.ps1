@@ -540,11 +540,9 @@ if ($retreivedData.providerSelection -ne "noProvider") {
 # Register Parallels RAS with the license key - REQUIRES UPDATES
 New-RASSession -Username $retreivedData.domainJoinUserName -Password $localAdminPasswordSecure -Server $retreivedData.primaryConnectionBroker
 
-<#
 #Set Azure Marketplace related settings in RAS db
 Set-RASAzureMarketplaceDeploymentSettings -SubscriptionID $retreivedData.SubscriptionId -TenantID $retreivedData.tenantID 
 -CustomerUsageAttributionID $retreivedData.customerUsageAttributionID -ManagedAppResourceUsageID $resourceUsageId[1]
-#>
 
 # Invoke-apply
 invoke-RASApply
