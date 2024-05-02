@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_Install.ps1
     Author     : Freek Berson
-    Version    : v0.0.16
-    Date       : April 14 2024
+    Version    : v0.0.17
+    Date       : April 19 2024
 .EXAMPLE
     .\RAS_Azure_MP_Install.ps1
 #>
@@ -75,6 +75,8 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$downloadURLRAS    
 )
+
+$downloadURLRAS = '\\FB-MP-TEST-DC.prasmpdemo.com\Install\RASInstaller-19.4.24961.msi'
 
 function New-ImpersonateUser {
 
