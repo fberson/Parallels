@@ -575,6 +575,9 @@ for ($i = 1; $i -le $retreivedData.numberofSGs; $i++) {
     restart-computer -computername $secureGateway -WsmanAuthentication Kerberos -force
 }
 
+#Clean up JSON file
+remove-item "C:\install\output.json" -Force
+
 Write-Host 'Registration of Parallels RAS is completed.' `n
 Read-Host -Prompt "Press any key to open the Parallels RAS console..." | Out-Null
 
