@@ -76,8 +76,6 @@ param(
     [string]$downloadURLRAS    
 )
 
-$downloadURLRAS = '\\FB-MP-TEST-DC.prasmpdemo.com\Install\RASInstaller-19.4.24961.msi'
-
 function New-ImpersonateUser {
 
     [cmdletbinding()]
