@@ -41,8 +41,6 @@ param(
     
 )
 
-$downloadURLRAS = '\\FB-MP-TEST-DC.prasmpdemo.com\Install\RASInstaller-19.4.24961.msi'
-
 #Set variables
 $Temploc = 'C:\install\RASInstaller.msi'
 $installPath = "C:\install"
