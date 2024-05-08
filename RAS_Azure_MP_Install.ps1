@@ -60,10 +60,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$providerSelection,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$providerName,
 
-    [Parameter(Mandatory = $true)]
+    [Parameter(Mandatory = $false)]
     [string]$providerAppRegistrationName,
 
     [Parameter(Mandatory = $true)]
