@@ -4,8 +4,8 @@
 .NOTES  
     File Name  : RAS_Azure_MP_prereq.ps1
     Author     : Freek Berson
-    Version    : v0.0.16
-    Date       : April 14 2024
+    Version    : v0.0.18
+    Date       : May 23 2024
 .EXAMPLE
     .\RAS_Azure_MP_prereq.ps1
 #>
@@ -81,6 +81,3 @@ Catch {
     Write-Host $_.Exception.Message
     exit
 }
-
-#Reboot the server to apply all changes
-#shutdown /r /t 0
